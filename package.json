@@ -2,13 +2,12 @@
   "name": "@arex95/vue-core",
   "version": "5.1.0",
   "description": "Opinionated Vue Core",
-  "main": "dist/index.js",
+  "main": "dist/index.mjs",
   "module": "dist/index.mjs",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
+      "import": "./dist/index.mjs"
     }
   },
   "types": "dist/index.d.ts",
@@ -17,7 +16,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "rollup -c",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && rollup -c && node scripts/fix-dts-aliases.mjs",
     "changelog": "conventional-changelog -p angular -o CHANGELOG.md -r 0",
     "release": "npm version patch && npm run changelog && git add CHANGELOG.md package.json pnpm-lock.yaml && git commit -m \"chore(release): update changelog\" && git push && npm publish --access public",
     "release:major": "npm version major && npm run changelog && git add CHANGELOG.md package.json pnpm-lock.yaml && git commit -m \"chore(release): update changelog\" && git push && npm publish --access public",
@@ -36,12 +36,21 @@
   "author": "Arturo Rafael Serrano Girón",
   "license": "MIT",
   "peerDependencies": {
+    "@tanstack/vue-query": ">=5.0.0",
     "@vueuse/core": ">=12.8.2",
     "axios": ">=1.6.0",
     "jwt-decode": "^4.0.0",
     "ofetch": ">=1.0.0",
     "uuid": ">=11.1.0",
     "vue": ">=3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@tanstack/vue-query": {
+      "optional": true
+    },
+    "ofetch": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@eslint/js": "^9.23.0",

@@ -161,6 +161,10 @@ export function deepMerge<T>(target: T, source: Partial<T>): T {
 
     for (const key in source) {
         if (Object.prototype.hasOwnProperty.call(source, key)) {
+            // Guard against prototype pollution when merging untrusted input.
+            if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+                continue;
+            }
             if (source[key] && typeof source[key] === 'object') {
                 if (target && !target[key]) {
                     Object.assign(target, { [key]: {} });
@@ -246,30 +250,43 @@ export function hasNestedProperties(obj: Record<string, any>): boolean {
 // hasNestedProperties({ a: 1, b: 2 }); // false
 
 /**
- * Recursively converts a nested object into a `FormData` object.
- *
- * @param {Record<string, any>} obj - The object to convert.
- * @param {FormData} [formData=new FormData()] - An existing `FormData` object to append to.
- * @param {string} [parentKey=''] - The base key for nested properties.
- * @returns {FormData} The resulting `FormData` object.
+ * Appends a single value to a `FormData` object under `key`, handling the
+ * common value shapes correctly:
+ * - `null` / `undefined` → skipped (no field emitted)
+ * - `Blob` / `File`      → appended as-is
+ * - `ArrayBuffer`        → wrapped in a `Blob`
+ * - `Date`               → ISO-8601 string (stable, not locale-dependent)
+ * - `Array`              → each item under `key[index]` (recursively)
+ * - nested object        → recursed with `key` as namespace
+ * - `boolean`            → `"1"` / `"0"`
+ * - everything else      → stringified
  */
-export function objectToFormDataEnhanced(obj: Record<string, any>, formData = new FormData(), parentKey = ''): FormData {
-    Object.entries(obj).forEach(([key, value]) => {
-        const finalKey = parentKey ? `${parentKey}[${key}]` : key;
-        if (value && typeof value === 'object' && !(value instanceof File)) {
-            objectToFormDataEnhanced(value, formData, finalKey);
-        } else {
-            formData.append(finalKey, value);
-        }
-    });
-    return formData;
+function appendFormValue(fd: FormData, key: string, value: any): void {
+    if (value === undefined || value === null) {
+        return;
+    }
+    if (value instanceof Blob || (typeof File !== 'undefined' && value instanceof File)) {
+        fd.append(key, value);
+    } else if (value instanceof ArrayBuffer) {
+        fd.append(key, new Blob([value]));
+    } else if (value instanceof Date) {
+        fd.append(key, value.toISOString());
+    } else if (Array.isArray(value)) {
+        value.forEach((item, index) => appendFormValue(fd, `${key}[${index}]`, item));
+    } else if (typeof value === 'object') {
+        objectToFormData(value, fd, key);
+    } else if (typeof value === 'boolean') {
+        fd.append(key, String(Number(value)));
+    } else {
+        fd.append(key, String(value));
+    }
 }
 
-// Example usage:
-// objectToFormDataEnhanced({ user: { name: 'John', age: 30 } });
-
 /**
- * Recursively converts a JavaScript object into a `FormData` object, handling nested objects and boolean conversion.
+ * Recursively converts a JavaScript object into a `FormData` object.
+ *
+ * Handles nested objects/arrays, `File`/`Blob`/`ArrayBuffer`, `Date` (ISO),
+ * boolean→`1`/`0`, and skips `null`/`undefined` values.
  *
  * @param {any} obj - The object to convert.
  * @param {FormData} [form] - An optional existing `FormData` object to append to.
@@ -278,27 +295,16 @@ export function objectToFormDataEnhanced(obj: Record<string, any>, formData = ne
  */
 export const objectToFormData = function (obj: any, form?: FormData, namespace?: string): FormData {
     const fd = form || new FormData();
-    let formKey: string;
+    if (obj === null || obj === undefined) {
+        return fd;
+    }
 
     for (const property in obj) {
-        if (obj[property] === undefined) {
+        if (!Object.prototype.hasOwnProperty.call(obj, property)) {
             continue;
         }
-        if (Object.prototype.hasOwnProperty.call(obj, property)) {
-            if (namespace) {
-                formKey = `${namespace}[${property}]`;
-            } else {
-                formKey = property;
-            }
-            if (typeof obj[property] === 'object' && !(obj[property] instanceof File)) {
-                // Recursively handle nested objects
-                objectToFormData(obj[property], fd, formKey);
-            } else {
-                // Convert boolean values to 1/0
-                const value = obj[property] === true || obj[property] === false ? Number(obj[property]) : obj[property];
-                fd.append(formKey, value);
-            }
-        }
+        const formKey = namespace ? `${namespace}[${property}]` : property;
+        appendFormValue(fd, formKey, obj[property]);
     }
 
     return fd;

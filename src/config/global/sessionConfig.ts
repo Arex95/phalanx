@@ -21,6 +21,14 @@ let _sessionConfig: SessionConfig = Object.freeze({
 });
 
 /**
+ * Tracks whether the session config has been loaded from storage at least once.
+ * Avoids an AES decrypt on every `getSessionPersistence()` call — which the Axios
+ * request interceptor invokes on *every* request. The in-memory `_sessionConfig`
+ * is authoritative once loaded or explicitly set via `configSession`.
+ */
+let _loaded = false;
+
+/**
  * Updates the immutable `_sessionConfig` object with the current state of `internalSessionState`
  * and freezes it.
  */
@@ -57,6 +65,9 @@ async function saveSessionConfig(): Promise<void> {
  * @returns {Promise<void>} A promise that resolves when the state has been loaded and updated.
  */
 async function loadSessionConfig(): Promise<void> {
+  if (_loaded) {
+    return;
+  }
   const location = internalSessionState.persistencePreference;
   try {
     const storedConfig = await getDecryptedItem(SESSION_KEY, getAppKey(), location);
@@ -66,6 +77,9 @@ async function loadSessionConfig(): Promise<void> {
       internalSessionState.persistencePreference = parsedConfig.PERSISTENCE;
       updateSessionConfig();
     }
+    // Mark as loaded only after a successful read attempt; on error we leave it
+    // false so the next call retries.
+    _loaded = true;
   } catch (error) {
     console.warn(`Error loading or parsing from storage`, error);
   }
@@ -93,6 +107,8 @@ export async function configSession(
     internalSessionState.persistencePreference = config.persistencePreference;
   }
   updateSessionConfig();
+  // The in-memory state is now authoritative — skip the storage round-trip on reads.
+  _loaded = true;
   await saveSessionConfig();
 }
 

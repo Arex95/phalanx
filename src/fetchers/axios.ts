@@ -1,6 +1,6 @@
-import { AxiosInstance, AxiosError } from 'axios';
+import { AxiosInstance } from 'axios';
 import { Fetcher, FetcherConfig } from '../types/Fetcher';
-import { NetworkError } from '../errors';
+import { normalizeHttpError } from '../errors';
 
 /**
  * Creates a fetcher function using Axios.
@@ -33,10 +33,7 @@ export function createAxiosFetcher(axiosInstance: AxiosInstance): Fetcher {
             });
             return response.data;
         } catch (error) {
-            if (error instanceof AxiosError || (error as AxiosError)?.isAxiosError) {
-                throw NetworkError.fromAxiosError(error);
-            }
-            throw error;
+            throw normalizeHttpError(error);
         }
     };
 }
