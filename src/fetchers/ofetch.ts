@@ -1,6 +1,7 @@
-// @ts-ignore - ofetch is an optional peer dependency
-import { $fetch, FetchOptions } from 'ofetch';
+// @ts-ignore - ofetch is an optional peer dependency (type-only import)
+import type { FetchOptions } from 'ofetch';
 import { Fetcher, FetcherConfig } from '../types/Fetcher';
+import { normalizeHttpError } from '../errors';
 
 /**
  * Creates a fetcher function using ofetch.
@@ -37,17 +38,28 @@ export function createOfetchFetcher(
     defaultOptions?: FetchOptions
 ): Fetcher {
     return async (config: FetcherConfig): Promise<any> => {
-        const url = baseURL 
+        const url = baseURL
             ? `${baseURL.replace(/\/$/, '')}/${config.url.replace(/^\//, '')}`
             : config.url;
-        
-        return $fetch(url, {
-            method: config.method as any,
-            query: config.params,
-            body: config.data,
-            headers: config.headers,
-            ...defaultOptions,
-        });
+
+        try {
+            // Imported lazily so that merely importing the library (its barrel
+            // re-exports this module) does not eagerly resolve `ofetch`. This is
+            // what makes `ofetch` a genuinely *optional* peer dependency.
+            // @ts-ignore - ofetch is an optional peer dependency
+            const { $fetch } = await import('ofetch');
+            return await $fetch(url, {
+                method: config.method as any,
+                query: config.params,
+                body: config.data,
+                headers: config.headers,
+                ...defaultOptions,
+            });
+        } catch (error) {
+            // Wrap into the library's error hierarchy so the contract matches
+            // the Axios fetcher (NetworkError / ServerError) regardless of runtime.
+            throw normalizeHttpError(error);
+        }
     };
 }
 

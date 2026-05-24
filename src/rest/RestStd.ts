@@ -17,7 +17,7 @@ import {
 import { createAxiosFetcher } from "@/fetchers/axios";
 import { getConfiguredAxiosInstance } from "@/config/axios/axiosInstance";
 import { retryWithBackoff, RetryConfig } from "@/utils/retry";
-import { NetworkError } from "@/errors";
+import { normalizeHttpError } from "@/errors";
 
 /**
  * A standardized RESTful class that provides a generic interface for performing
@@ -86,25 +86,24 @@ export class RestStd {
      */
     private static async executeFetch<T>(config: FetcherConfig): Promise<T> {
         const fetcher = this.getFetchFn();
-        
+
+        // Single code path normalizes errors for BOTH the retry and non-retry
+        // branches. Previously the retry branch bypassed error wrapping, so a
+        // custom/ofetch fetcher returned raw errors and `retryCondition` never
+        // matched (5xx were not retried, ServerError was never produced).
+        const run = async (): Promise<T> => {
+            try {
+                return (await fetcher(config)) as T;
+            } catch (error: unknown) {
+                throw normalizeHttpError(error);
+            }
+        };
+
         if (this.retryConfig) {
-            return retryWithBackoff(
-                () => fetcher(config),
-                this.retryConfig
-            );
+            return retryWithBackoff(run, this.retryConfig);
         }
-        
-        try {
-            return await fetcher(config);
-        } catch (error: unknown) {
-            if (error && typeof error === 'object' && 'response' in error) {
-                throw NetworkError.fromAxiosError(error);
-            }
-            if (error instanceof Error && error.name === 'TypeError' && error.message?.includes('fetch')) {
-                throw NetworkError.fromFetchError(error);
-            }
-            throw error;
-        }
+
+        return run();
     }
 
     /**
@@ -162,11 +161,14 @@ export class RestStd {
         if (hasData) {
             headers["Content-Type"] = ContentTypeEnum.JSON;
         }
-        
+
+        // `params` and `data` are independent: query params are always sent, and
+        // a body is added only when provided. Previously passing `data` silently
+        // discarded `params`, which was a footgun.
         const config: FetcherConfig = {
             method: "GET",
             url: finalUrl,
-            params: hasData ? undefined : params,
+            params,
             data: hasData ? data : undefined,
             headers,
         };
@@ -410,7 +412,9 @@ export class RestStd {
     static upsert<TResponse = unknown, TData = unknown>(
         options: UpsertOptions<TData>
     ): Promise<TResponse> {
-        if (options.data.id) {
+        // Treat any defined id (including 0 and '') as "update". Using a plain
+        // truthiness check misrouted id=0 to create().
+        if (options.data.id !== undefined && options.data.id !== null) {
             return this.update<TResponse, TData>({
                 id: options.data.id,
                 data: options.data,

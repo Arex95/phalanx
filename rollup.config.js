@@ -15,6 +15,7 @@ export default {
     "@vueuse/core",
     "jwt-decode",
     "uuid",
+    "@tanstack/vue-query",
   ],
   plugins: [typescript()],
 };
