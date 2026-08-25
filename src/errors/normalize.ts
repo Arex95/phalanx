@@ -1,50 +1,126 @@
 import { BaseError } from './BaseError';
 import { NetworkError } from './NetworkError';
+import { AuthError } from './AuthError';
+import { ValidationError, ValidationIssue } from './ValidationError';
 import { ServerError } from './ServerError';
 
-/**
- * Extracts an HTTP status code from heterogeneous error shapes
- * (axios: `error.response.status`; ofetch/fetch: `error.status` / `error.statusCode`).
- */
-function getStatus(error: Record<string, any>): number | undefined {
-  return error?.response?.status ?? error?.statusCode ?? error?.status;
+type HttpErrorShape = {
+  message?: string;
+  response?: { status?: number; data?: unknown };
+  config?: { url?: string; method?: string };
+  request?: { url?: string };
+  isAxiosError?: boolean;
+  status?: number;
+  statusCode?: number;
+  data?: unknown;
+};
+
+function getStatus(e: HttpErrorShape): number | undefined {
+  return e?.response?.status ?? e?.statusCode ?? e?.status;
+}
+
+function isHttpShape(e: object): e is HttpErrorShape {
+  const r = e as HttpErrorShape;
+  return (
+    'response' in r ||
+    r.isAxiosError === true ||
+    typeof r.status === 'number' ||
+    typeof r.statusCode === 'number'
+  );
 }
 
 /**
- * Normalizes any thrown value into the library's error hierarchy so that
- * consumers get a consistent error contract regardless of the underlying
- * fetcher (axios, ofetch, native fetch).
+ * Best-effort extraction of validation issues from common backend shapes.
+ * Returns `[]` when the response shape is unrecognised — callers still have
+ * access to the original payload via `error.context.responseData`.
  *
- * - Already a {@link BaseError} → returned untouched (idempotent).
- * - HTTP error with status >= 500 → {@link ServerError}.
- * - Any other HTTP error → {@link NetworkError}.
- * - Native `fetch` TypeError → {@link NetworkError} via `fromFetchError`.
- * - Anything else → returned unchanged so callers can rethrow it as-is.
+ * Supported shapes:
+ *   - Spring Boot `BindingResult` → `{ errors: [{ field, defaultMessage, rejectedValue }] }`
+ *   - NestJS `class-validator`     → `{ message: string[] }`
+ *   - JSON:API                     → `{ errors: [{ source: { pointer }, detail, title }] }`
+ *   - Laravel                      → `{ errors: { field: string[] } }`
  */
-export function normalizeHttpError(error: unknown): unknown {
-  if (error instanceof BaseError) {
-    return error;
+function extractIssues(data: unknown): ValidationIssue[] {
+  if (!data || typeof data !== 'object') return [];
+  const d = data as Record<string, unknown>;
+
+  // Spring: array of `{ field, defaultMessage, rejectedValue }`
+  if (Array.isArray(d.errors)) {
+    const list = d.errors as Array<Record<string, unknown>>;
+    if (list[0] && 'field' in list[0]) {
+      return list.map((e) => ({
+        field: String(e.field ?? ''),
+        message: String(e.defaultMessage ?? e.message ?? ''),
+        value: e.rejectedValue,
+      }));
+    }
+    // JSON:API: errors with `source.pointer`
+    const first = list[0];
+    const source = first && (first as { source?: { pointer?: unknown } }).source;
+    if (source && typeof source.pointer === 'string') {
+      return list.map((e) => {
+        const src = (e as { source?: { pointer?: string } }).source;
+        const pointer = src?.pointer ?? '';
+        return {
+          field: pointer.split('/').pop() ?? '',
+          message: String((e as { detail?: unknown; title?: unknown }).detail ?? (e as { title?: unknown }).title ?? ''),
+        };
+      });
+    }
   }
 
-  if (error && typeof error === 'object') {
-    const e = error as Record<string, any>;
-    const isHttp =
-      'response' in e ||
-      e.isAxiosError === true ||
-      typeof e.status === 'number' ||
-      typeof e.statusCode === 'number';
+  // NestJS class-validator: `message` is an array of strings
+  if (Array.isArray(d.message)) {
+    return (d.message as unknown[]).map((m) => ({ field: '', message: String(m) }));
+  }
 
-    if (isHttp) {
+  // Laravel: `errors` is a record of `field -> string[]`
+  if (d.errors && typeof d.errors === 'object' && !Array.isArray(d.errors)) {
+    return Object.entries(d.errors as Record<string, unknown>).flatMap(([field, msgs]) => {
+      const list = Array.isArray(msgs) ? msgs : [msgs];
+      return list.map((m) => ({ field, message: String(m) }));
+    });
+  }
+
+  return [];
+}
+
+/**
+ * Normalizes any thrown value into the typed error hierarchy so consumers can
+ * branch with `instanceof` regardless of the underlying fetcher.
+ *
+ * - 401 / 403            → {@link AuthError}
+ * - 422                  → {@link ValidationError} with `issues` extracted heuristically
+ * - 5xx                  → {@link ServerError}
+ * - Any other HTTP shape → {@link NetworkError}
+ * - Native fetch TypeError → {@link NetworkError} via `fromFetchError`
+ * - Already a `BaseError` → returned untouched (idempotent)
+ * - Anything else        → returned unchanged so callers can rethrow as-is
+ */
+export function normalizeHttpError(error: unknown): unknown {
+  if (error instanceof BaseError) return error;
+
+  if (error && typeof error === 'object') {
+    if (isHttpShape(error)) {
+      const e = error as HttpErrorShape;
       const status = getStatus(e);
       const responseData = e.response?.data ?? e.data;
       const message =
-        responseData?.message || e.message || 'Network request failed';
-      const context = {
+        (responseData as { message?: string } | undefined)?.message ||
+        e.message ||
+        'Network request failed';
+      const context: Record<string, unknown> = {
         url: e.config?.url ?? e.request?.url,
         method: e.config?.method,
         responseData,
       };
 
+      if (status === 401 || status === 403) {
+        return new AuthError(message, context);
+      }
+      if (status === 422) {
+        return new ValidationError(message, extractIssues(responseData), context);
+      }
       if (typeof status === 'number' && status >= 500) {
         return new ServerError(message, status, context);
       }
@@ -52,12 +128,12 @@ export function normalizeHttpError(error: unknown): unknown {
     }
 
     if (
-      e instanceof Error &&
-      e.name === 'TypeError' &&
-      typeof e.message === 'string' &&
-      e.message.includes('fetch')
+      error instanceof Error &&
+      error.name === 'TypeError' &&
+      typeof error.message === 'string' &&
+      error.message.includes('fetch')
     ) {
-      return NetworkError.fromFetchError(e);
+      return NetworkError.fromFetchError(error);
     }
   }
 

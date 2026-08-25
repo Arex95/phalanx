@@ -1,7 +1,7 @@
 {
   "name": "@arex95/vue-core",
   "version": "5.1.0",
-  "description": "Opinionated Vue Core",
+  "description": "REST + Auth foundation for Vue 3 apps. RestStd base class, encrypted token storage, automatic refresh, typed errors.",
   "main": "dist/index.mjs",
   "module": "dist/index.mjs",
   "exports": {
@@ -12,6 +12,7 @@
   },
   "types": "dist/index.d.ts",
   "type": "module",
+  "sideEffects": false,
   "files": [
     "dist"
   ],
@@ -29,15 +30,16 @@
   },
   "keywords": [
     "vue",
-    "composables",
-    "core",
-    "npm"
+    "vue3",
+    "rest",
+    "auth",
+    "jwt",
+    "axios",
+    "ofetch"
   ],
   "author": "Arturo Rafael Serrano Girón",
   "license": "MIT",
   "peerDependencies": {
-    "@tanstack/vue-query": ">=5.0.0",
-    "@vueuse/core": ">=12.8.2",
     "axios": ">=1.6.0",
     "jwt-decode": "^4.0.0",
     "ofetch": ">=1.0.0",
@@ -45,9 +47,6 @@
     "vue": ">=3.0.0"
   },
   "peerDependenciesMeta": {
-    "@tanstack/vue-query": {
-      "optional": true
-    },
     "ofetch": {
       "optional": true
     }
@@ -58,7 +57,6 @@
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.0",
     "@rollup/plugin-typescript": "^12.1.2",
-    "@types/crypto-js": "^4.2.2",
     "@types/node": "^22.13.10",
     "conventional-changelog-cli": "^5.0.0",
     "eslint": "^9.23.0",
@@ -69,12 +67,5 @@
     "tslib": "^2.8.1",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.28.0"
-  },
-  "dependencies": {
-    "@vueuse/core": ">=12.8.2",
-    "axios": ">=1.6.0",
-    "jwt-decode": "^4.0.0",
-    "uuid": ">=11.1.0",
-    "vue": ">=3.0.0"
   }
 }

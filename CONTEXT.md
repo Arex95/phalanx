@@ -1,497 +1,324 @@
-# CONTEXT.md — @arex95/vue-core — Documentación interna completa
+# CONTEXT.md — `@arex95/vue-core` — internal reference
 
-> Archivo de referencia para trabajar en este repositorio. Cubre arquitectura, contratos de tipos, comportamiento de cada módulo y patrones de uso.
-
----
-
-## Identidad del paquete
-
-- **Nombre publicado:** `@arex95/vue-core`
-- **Versión actual:** 3.1.0
-- **Descripción:** Opinionated Vue Core — librería de utilidades, composables y clase base REST para aplicaciones Vue 3
-- **Build:** Rollup → `dist/index.mjs` (ESM only)
-- **Entry point fuente:** `src/index.ts`
-- **Package manager:** pnpm
+> Working reference for this repo. Covers architecture, contracts, module behavior, and usage patterns. Optimized for someone who just cloned the repo and needs to move fast.
 
 ---
 
-## Instalación como plugin
+## Identity
+
+- **Package:** `@arex95/vue-core`
+- **Scope:** REST + Auth foundation for Vue 3 apps. Nothing else.
+- **Build:** Rollup → `dist/index.mjs` (ESM only). `"sideEffects": false`.
+- **Entry:** `src/index.ts`
+- **Package manager:** `pnpm`
+
+Anything that duplicated `@vueuse/core`, `date-fns`, `zod`, `lodash`, `@tanstack/vue-query` or belonged to unrelated toolkits (exports, DOM helpers, breakpoints, monitoring, debounces, strings, dates, validations, `handleError`) was removed in the v6 lean rewrite.
+
+---
+
+## Plugin install
 
 ```typescript
-import { ArexVueCore } from '@arex95/vue-core'
+import { ArexVueCore } from '@arex95/vue-core';
 
 app.use(ArexVueCore, {
-  appKey: 'mi-clave-de-encriptacion',
-  endpoints: {
-    login: '/api/auth/login',
-    refresh: '/api/auth/refresh',
-    logout: '/api/auth/logout',
-  },
-  tokenKeys: {
-    accessToken: 'access_token',      // clave en localStorage/sessionStorage
-    refreshToken: 'refresh_token',
-  },
-  tokenPaths: {
-    accessToken: 'data.access_token', // dot-notation en la respuesta del login
-    refreshToken: 'data.refresh_token',
-  },
-  refreshTokenPaths: {
-    accessToken: 'data.access_token', // dot-notation en la respuesta del refresh
-    refreshToken: 'data.refresh_token',
-  },
+  appKey: 'aes-secret-here',
+  endpoints:         { login: '/api/auth/login', refresh: '/api/auth/refresh', logout: '/api/auth/logout' },
+  tokenKeys:         { accessToken: 'access_token', refreshToken: 'refresh_token' },
+  tokenPaths:        { accessToken: 'data.access_token', refreshToken: 'data.refresh_token' },
+  refreshTokenPaths: { accessToken: 'data.access_token', refreshToken: 'data.refresh_token' },
+  refreshTokenBodyKey: 'refresh_token', // or 'refreshToken' for Spring / NestJS
   axios: {
     baseURL: 'https://api.example.com',
-    headers: { 'X-App-Version': '1.0' },
+    headers: {},
     timeout: 30000,
     withCredentials: false,
+    setupAuthInterceptors: true, // false for Nuxt SSR
   },
-})
+  onRefreshFailed: () => {},
+  onLogout:        () => {},
+});
 ```
 
-El `install()` llama en orden: `configAppKey → configTokenKeys → configEndpoints → configTokenPaths → configRefreshTokenPaths → configAxios`.
+`install()` calls, in order:
+`configAppKey → configTokenKeys → configEndpoints → configTokenPaths → configRefreshTokenPaths → configRefreshTokenBodyKey → configAxios → configCallbacks`.
 
 ---
 
-## Arquitectura general
+## Source layout
 
 ```
 src/
-├── index.ts                  ← Plugin Vue + re-exporta todo
-├── config/                   ← Singletons de configuración global (frozen)
-│   ├── global/               ← tokensConfig, endpointsConfig, sessionConfig, keyConfig, tokenPathsConfig
-│   ├── axios/                ← AxiosService class + instancia singleton
-│   └── auth/                 ← authFetcher singleton
-├── rest/
-│   └── RestStd.ts            ← Clase base CRUD para recursos REST
-├── composables/
-│   ├── auth/useAuth.ts       ← login / logout
-│   ├── axios/                ← axiosFetch helper + useFetch wrapper
-│   ├── paginators/           ← usePagination
-│   ├── sorters/              ← useSorter
-│   ├── filters/              ← useFilter
-│   ├── breakpoints/          ← useBreakpoint (Tailwind-based)
-│   └── monitoring/           ← useApiActivity, useUserInactivity
-├── fetchers/                 ← createAxiosFetcher, createOfetchFetcher
-├── services/                 ← extractTokens, refreshTokens, storeTokens, credentials
-├── errors/                   ← BaseError, NetworkError, AuthError, ValidationError, ServerError
-├── enums/                    ← ContentTypeEnum, ExceptionEnum, ScreenSize, KeyCodeEnum, etc.
-├── types/                    ← Todas las interfaces y tipos TypeScript
-└── utils/                    ← Funciones puras: strings, objects, dates, storage, crypto, validations...
+├── index.ts                       Vue plugin + re-exports
+├── config/
+│   ├── global/                    Frozen singletons: appKey, tokenKeys, endpoints,
+│   │                               tokenPaths, refreshTokenPaths, refreshTokenBodyKey,
+│   │                               session, callbacks
+│   ├── axios/                     AxiosService (with 401 interceptor) + singleton getter
+│   └── auth/                      authFetcher factory
+├── rest/RestStd.ts                Base CRUD class
+├── composables/auth/useAuth.ts    login / logout
+├── fetchers/                      createAxiosFetcher, createOfetchFetcher
+├── services/                      extractTokens, refreshTokens, storeTokens, credentials
+├── errors/                        BaseError → NetworkError | AuthError | ValidationError | ServerError
+│                                  + normalize.ts (status → typed class)
+├── enums/contentTypesEnums.ts     Only `ContentTypeEnum` survives
+├── types/                         Public type surface only
+└── utils/                         Encryption, storage, ssr, retry, safeGet, objectToFormData
 ```
 
 ---
 
-## config/ — Singletons globales
+## Config singletons
 
-Cada módulo expone un par `configX()` / `getX()`. Son módulos con estado de nivel de módulo (variables de módulo), no clases. El plugin los inicializa en `install()`.
+Each module owns a private variable + a `configX()` / `getX()` pair. The variable is set once at install and frozen; subsequent `configX` calls are no-ops.
 
-### `config/global/keyConfig.ts`
-```typescript
-configAppKey({ appKey: string })  // Lanza si appKey es vacío
-getAppKey(): string               // Lanza si no fue configurado
-```
-`appKey` es la clave de encriptación AES-CBC usada en todo el almacenamiento.
-
-### `config/global/tokensConfig.ts`
-```typescript
-configTokenKeys({ accessTokenKey, refreshTokenKey })
-getTokenConfig(): TokensConfig    // { ACCESS_TOKEN, REFRESH_TOKEN }
-```
-Defaults: `access_token` / `refresh_token`.
-
-### `config/global/endpointsConfig.ts`
-```typescript
-configEndpoints({ loginEndpoint, refreshEndpoint, logoutEndpoint })
-getEndpointsConfig(): EndpointsConfig  // { LOGIN, REFRESH, LOGOUT }
-```
-Defaults: `/login`, `/refresh`, `/logout`.
-
-### `config/global/tokenPathsConfig.ts`
-```typescript
-configTokenPaths({ accessTokenPath, refreshTokenPath })
-configRefreshTokenPaths({ accessTokenPath, refreshTokenPath })
-getTokenPathsConfig(): AuthTokenPaths
-getRefreshTokenPathsConfig(): AuthTokenPaths
-```
-Paths en dot-notation para extraer tokens de la respuesta de la API. Default: `"data.access_token"` / `"data.refresh_token"`.
-
-### `config/global/sessionConfig.ts`
-Gestiona sesión con UUID persistido en storage encriptado.
-```typescript
-configSession({ sessionId?, persistencePreference? })
-getSessionId(): Promise<string>
-getSessionPersistence(): Promise<LocationPreference>  // "local"|"session"|"cookie"|"any"
-getSessionConfig(): Promise<SessionConfig>
-```
-Clave en storage: `"session_config_"`. Se encripta con `appKey`.
-
-### `config/axios/axiosInstance.ts`
-```typescript
-configAxios(options: AxiosServiceOptions): void
-getConfiguredAxiosInstance(): AxiosInstance
-```
-Crea un `AxiosService` singleton. Si se llama `getConfiguredAxiosInstance()` sin configurar, crea uno con defaults vacíos.
-
-### `config/auth/authFetcher.ts`
-```typescript
-configAuthFetcher(fetcher: Fetcher): void
-setDefaultAuthFetcherFactory(factory: () => Fetcher): void
-getDefaultAuthFetcher(): Fetcher   // Lanza si nada fue configurado
-```
-`configAxios()` llama automáticamente `setDefaultAuthFetcherFactory()` para que el fetcher por defecto sea Axios.
+| Module | Setter | Getter | Notes |
+|---|---|---|---|
+| `keyConfig` | `configAppKey({ appKey })` | `getAppKey()` | Throws if unset. |
+| `tokensConfig` | `configTokenKeys({ accessTokenKey, refreshTokenKey })` | `getTokenConfig()` | Defaults: `access_token` / `refresh_token`. |
+| `endpointsConfig` | `configEndpoints({ loginEndpoint, refreshEndpoint, logoutEndpoint })` | `getEndpointsConfig()` | Defaults: `/login`, `/refresh`, `/logout`. |
+| `tokenPathsConfig` | `configTokenPaths({ accessTokenPath, refreshTokenPath })` + `configRefreshTokenPaths(…)` | `getTokenPathsConfig()`, `getRefreshTokenPathsConfig()` | Dot-notation for response extraction. |
+| `refreshBodyKeyConfig` | `configRefreshTokenBodyKey(key?)` | `getRefreshTokenBodyKey()` | Default `'refresh_token'`. Flat literal key for the refresh request body. |
+| `sessionConfig` | `configSession({ sessionId?, persistencePreference? })` | `getSessionId()`, `getSessionPersistence()`, `getSessionConfig()` | UUID persisted in encrypted storage. |
+| `callbacksConfig` | `configCallbacks({ onRefreshFailed?, onLogout? })` | `getCallbacksConfig()` | Optional hooks. |
+| `axios/axiosInstance` | `configAxios(options)` | `getConfiguredAxiosInstance()` | Creates the `AxiosService` singleton; lazy-inits with defaults if never configured. Also wires `setDefaultAuthFetcherFactory()`. |
+| `auth/authFetcher` | `configAuthFetcher(fetcher)` / `setDefaultAuthFetcherFactory(factory)` | `getDefaultAuthFetcher()` | Throws if neither is set. |
 
 ---
 
-## AxiosService — `config/axios/axiosConfig.ts`
+## `AxiosService` — `config/axios/axiosConfig.ts`
 
-Clase que envuelve Axios con interceptores automáticos:
+Wraps a shared axios instance with two interceptors.
 
-**Request interceptor:**
-- Obtiene el access token con `getAuthToken(getAppKey(), "any")`
-- Adjunta `Authorization: Bearer <token>` si existe
-- Adjunta `cancelToken`
-- Incrementa `activeRequests`
+**Request:** reads the access token from storage (using the session's persistence preference, not hardcoded `'any'`) and adds `Authorization: Bearer <token>`. Attaches a shared `cancelToken`. Increments `activeRequests`.
 
-**Response interceptor (401 handling):**
-- Si recibe 401 (y no es la propia llamada de refresh ni un retry):
-  - Si ya hay refresh en progreso: encola la promesa
-  - Si no: setea `_retry=true`, llama `refreshTokens()`, reanuda la cola con el nuevo token
-  - Si el refresh falla: limpia la cola, propaga el error original
-- Métodos públicos: `getActiveRequests()`, `getAxiosInstance()`, `cancelAllRequests()`, `setHeader()`, `removeHeader()`
+**Response (401 flow):**
+- Skips refresh when the failing call IS the refresh endpoint, or is already a retry, or is not 401.
+- If a refresh is already in flight → the failing request is queued.
+- Otherwise: marks `_retry`, calls `refreshTokens()`, releases the queue with the new token, retries the original request.
+- If the refresh fails → rejects the queue with the refresh error and rejects the original.
+- SSR-safe: skips refresh entirely when `window === undefined`.
+
+Public methods: `getActiveRequests()`, `getAxiosInstance()`, `cancelAllRequests()`, `setHeader(key,value)`, `removeHeader(key)`.
+
+`setupAuthInterceptors: false` → constructor skips `initializeInterceptors()`. Verify it's actually honored end-to-end: `configAxios()` / `getConfiguredAxiosInstance()` must forward the flag.
 
 ---
 
-## RestStd — `src/rest/RestStd.ts`
+## `RestStd` — `src/rest/RestStd.ts`
 
-Clase base estática para recursos REST. **Se extiende, no se instancia.**
+Base class. Extend it and override `resource`.
 
 ```typescript
 export class Role extends RestStd {
     static override resource = 'roles';
-    // opcional: static fetchFn = createAxiosFetcher(axiosInstance);
-    // opcional: static isFormData = true;
-    // opcional: static retryConfig = { retries: 3 };
+    // optional: static fetchFn = createAxiosFetcher(customInstance);
+    // optional: static headers = { 'X-Tenant': 'acme' };
+    // optional: static retryConfig = { retries: 3 };
 }
-
-// Uso:
-const roles = await Role.getAll<RoleResponse[]>();
-const role = await Role.getOne<RoleResponse>({ id: 1 });
-const created = await Role.create<RoleResponse, RolePayload>({ data: payload });
-await Role.update<RoleResponse, RolePayload>({ id: 1, data: payload });
-await Role.patch<RoleResponse, Partial<RolePayload>>({ id: 1, data: partial });
-await Role.delete({ id: 1 });
-await Role.bulkCreate({ data: [payload1, payload2] });
-await Role.bulkUpdate({ data: [payload1, payload2] });
-await Role.bulkDelete({ ids: [1, 2, 3] });
-await Role.upsert({ data: { id: 1, ...payload } }); // update si tiene id, create si no
-await Role.customRequest({ method: 'POST', url: 'roles/special', data: payload });
 ```
 
-**Propiedades estáticas:**
-| Propiedad | Default | Descripción |
+**Static properties**
+
+| Prop | Default | Meaning |
 |---|---|---|
-| `resource` | — | REQUERIDO. String del endpoint (`'users'`, `'roles'`) |
-| `isFormData` | `false` | Si `true`, convierte data a FormData automáticamente |
-| `headers` | `{}` | Headers globales para todas las peticiones de la clase |
-| `fetchFn` | `undefined` | Fetcher custom; si no se define, usa Axios configurado |
-| `retryConfig` | `undefined` | Config de reintentos con backoff |
+| `resource` | — | REQUIRED. Base path (`'users'`, `'catalog/products'`). |
+| `headers` | `{}` | Merged into every request. |
+| `fetchFn` | Axios via config | Custom fetcher (`(FetcherConfig) => Promise<unknown>`). |
+| `retryConfig` | `undefined` | Retry-with-backoff over `executeFetch`. |
 
-**URL building:**
-- `getAll`: usa `resource` directamente (o `url` override)
-- `getOne`, `update`, `patch`, `delete`: `resource/id`
-- `bulkCreate`, `bulkUpdate`, `bulkDelete`: `resource/bulk`
+**Body serialization (auto-detected)**
 
-**FormData:** Cuando `getAll()` recibe `data` (body en GET), agrega `Content-Type: application/json` y omite `params`.
+- `data instanceof FormData` → sent as-is, no `Content-Type` (client emits multipart boundary).
+- `data instanceof Blob` / `ArrayBuffer` → sent as-is, no `Content-Type`.
+- Anything else non-nullish → `Content-Type: application/json`.
+
+Centralised in `prepareWrite(data)` — a private helper called by `create`, `update`, `patch`, `bulkCreate`, `bulkUpdate`, `bulkDelete`, `customRequest`.
+
+**Methods**
+
+- `getAll(options)` / `getOne({id})` — reads
+- `create({data})` / `update({id,data})` / `patch({id,data})` — writes
+- `delete({id})` / `bulkDelete({ids})`
+- `bulkCreate({data:[…]})` / `bulkUpdate({data:[…]})` → `/{resource}/bulk`
+- `upsert({data})` → `update` when `data.id` is defined (including `0`), else `create`.
+- `customRequest({method,url,params,data})` — escape hatch, honors `prepareWrite`.
+
+Every method calls `executeFetch()`, which wraps the fetcher call in `try { … } catch (e) { throw normalizeHttpError(e); }` so errors reach the caller as `AuthError` / `ValidationError` / `ServerError` / `NetworkError`. With `retryConfig` set, `retryWithBackoff` wraps the whole thing.
 
 ---
 
 ## Fetchers — `src/fetchers/`
 
-Abstracción para hacer HTTP requests. El tipo `Fetcher`:
 ```typescript
-type Fetcher = (config: FetcherConfig) => Promise<any>
+type Fetcher = (config: FetcherConfig) => Promise<unknown>;
 interface FetcherConfig {
-  method: string; url: string;
-  params?: Record<string, any>; data?: any; headers?: Record<string, string>;
+  method: string;
+  url: string;
+  params?: Record<string, unknown>;
+  data?: unknown;
+  headers?: Record<string, string>;
 }
 ```
 
-### `createAxiosFetcher(axiosInstance)`
-Envuelve una instancia Axios. Convierte `AxiosError` → `NetworkError` automáticamente. Retorna `response.data`.
-
-### `createOfetchFetcher(baseURL?, defaultOptions?)`
-Usa `ofetch` (peer dependency opcional). Combina `baseURL + config.url`. Mapea `params → query`, `data → body`.
+- `createAxiosFetcher(axiosInstance)` — thin adapter. Returns `response.data`. Normalizes errors.
+- `createOfetchFetcher(baseURL?, defaultOptions?)` — lazy `await import('ofetch')` inside the fetcher so that merely importing this package does not resolve `ofetch`. `ofetch` is an **optional** peer dependency for that reason.
 
 ---
 
-## Composables
+## `useAuth(fetcher?)`
 
-### `useAuth(fetcher?: Fetcher)`
 ```typescript
-const { login, logout } = useAuth()
+const { login, logout } = useAuth();
 
-// Login
-const response = await login(
-  { email, password },       // params
-  'local',                   // persistence: "local"|"session"|"cookie"
-  { accessTokenPath, refreshTokenPath }  // opcional, usa config global si no se pasa
-)
+await login(
+  { email, password },   // params
+  'local',               // persistence: 'local' | 'session' | 'cookie'
+  { accessTokenPath, refreshTokenPath } // optional override
+);
 
-// Logout — llama endpoint, limpia credentials, recarga página
-await logout({ reason: 'manual' })
+await logout({ reason: 'manual' }); // params optional; forwarded as request body
 ```
 
-### `usePagination(page, total, pageSize)` — todo es `Ref<number>`
-```typescript
-const { totalPages, canFetchNextPage, canFetchPreviousPage } = usePagination(page, total, pageSize)
-```
+`login` extracts tokens via the configured (or per-call) paths, sets the session persistence, encrypts + stores the tokens, and returns the raw response.
 
-### `useSorter(items, criteriaList, selectedCriteria)`
-Devuelve `ComputedRef<T[]>`. `criteriaList` tiene `{ value, label, field, order, type }` donde `type` es `'string'|'number'|'date'|'boolean'`.
-
-### `useFilter(items, filterConfig)`
-`filterConfig = { field, type: 'date'|'string'|'number'|'boolean', criteria }`. Para `date`: `{ startDate, endDate }`. Para `number`: `{ min, max }`. Para `string`: busca normalizando acentos, case-insensitive, por palabras.
-
-### `useBreakpoint()`
-Basado en breakpoints de Tailwind vía `@vueuse/core`. Expone combinaciones predefinidas: `sm_S`, `md_GE`, `lg_xl`, `mobile`, `tablet`, `laptop`, `desktop`, `windowWidth`, `windowHeight`, y más. Loggea chip de color en consola al cambiar de breakpoint (solo una vez por módulo).
-
-### `useApiActivity(sessionTimeoutMin?, checkIntervalSec?)`
-Defaults: 30 min timeout, 60 seg de chequeo. Agrega interceptor Axios para registrar `lastActivity` en storage. Verifica cada intervalo; si el usuario está autenticado y pasó el timeout → `logout()`.
-
-### `useUserInactivity(timeout?, useDefaultEvents?, customEvents?)`
-Default: 5 min. Escucha `mousemove`, `keydown`, `scroll`, `touchstart`. Expone `isInactive` (ref), `onTimeout(callback)`, `startInactivityTimer`, `stopInactivityTimer`, `resetInactivityTimer`.
-
-### `useFetch(fetchFn, axiosCustomInstance?)`
-Wrapper que inyecta la instancia Axios configurada en `fetchFn`. Para usarse con `@tanstack/vue-query`.
+`logout` POSTs to the logout endpoint, then unconditionally cleans credentials + fires `onLogout` (or `window.location.reload()`). **Errors from the POST are swallowed by design** — logout MUST terminate the local session regardless of network outcome.
 
 ---
 
-## Services — `src/services/`
+## `refreshTokens(fetcher?)` — `src/services/refreshTokens.ts`
 
-### `extractAndValidateTokens(data, tokenPaths, errorSource)`
-Usa `safeGet()` con dot-notation para extraer tokens del objeto de respuesta. Lanza si no encuentra los tokens o no son strings.
-
-### `refreshTokens(fetcher?)`
-1. Obtiene refresh token del storage con `getAuthToken(key, "any")`
-2. POST a `getEndpointsConfig().REFRESH` con `{ refresh_token: token }`
-3. Extrae nuevos tokens con `getRefreshTokenPathsConfig()`
-4. Llama `storeTokens()` con la persistencia actual
-5. Si falla: `cleanCredentials()` + `window.location.reload()`
-
-### `storeTokens(accessToken, refreshToken, persistence)`
-Llama `storeAuthToken` y `storeAuthRefreshToken` usando `getAppKey()`.
-
-### `credentials.ts`
-```typescript
-getAuthToken(appKey, location): Promise<string | null>
-getAuthRefreshToken(appKey, location): Promise<string | null>
-storeAuthToken(token, appKey, location): Promise<void>
-storeAuthRefreshToken(token, appKey, location): Promise<void>
-cleanCredentials(location): Promise<void>
-verifyAuth(): Promise<boolean>   // Decodifica JWT, verifica exp > now
-```
-`location: LocationPreference = "local"|"session"|"cookie"|"any"`. En `"any"`, busca en session → local → cookie.
-
----
-
-## Utils — `src/utils/`
-
-### `storage.ts`
-```typescript
-storeEncryptedItem(key, value, secretKey, location, cookieOptions?): Promise<void>
-getDecryptedItem(key, secretKey, location): Promise<string | null>
-```
-En SSR (sin `window`): usa cookies automáticamente. `location = "any"` busca en session → local → cookie.
-
-### `encryption.ts`
-Encriptación AES-CBC con Web Crypto API.
-```typescript
-encrypt(plaintext: string, key: string): Promise<string>  // retorna hex
-decrypt(ciphertext: string, key: string): Promise<string>
-```
-Internamente: `SHA-256(key)` como clave, IV aleatorio de 16 bytes prefijado al output.
-
-### `retry.ts`
-```typescript
-interface RetryConfig {
-  retries?: number;           // default: 3
-  retryDelay?: number;        // default: 1000ms
-  maxRetryDelay?: number;     // default: 10000ms
-  backoffMultiplier?: number; // default: 2
-  retryCondition?: (error: unknown) => boolean;
-}
-retryWithBackoff<T>(fn: () => Promise<T>, config?: RetryConfig): Promise<T>
-```
-Reintenta en: status 5xx, 408, 429, errores de red/timeout.
-
-### `objects.ts`
-Funciones clave:
-- `safeGet(obj, path)` — acceso por dot-notation (`"data.user.name"`)
-- `objectToFormData(data)` — para `RestStd.isFormData`
-- `deepMerge`, `deepClone`, `deepEqual`, `compareObject`
-- `flattenObject`, `filterObjectByKeys`, `getObjectDifferences`
-- `removeEmptyProperties`, `isEmptyObject`
-
-### `ssr.ts`
-```typescript
-isServer: boolean          // typeof window === 'undefined'
-isClient: boolean
-getStorage(): Storage | null           // localStorage o null en SSR
-getSessionStorage(): Storage | null    // sessionStorage o null en SSR
-getCookieStorage(): CookieStorage      // get/set/remove cookies
-getPreferredStorage(): PreferredStorage // sessionStorage en cliente, cookies en SSR
-```
-
-### `debounces.ts`
-- `debounce(fn, delay)` — trailing
-- `throttle(fn, limit)`
-- `debounceLeading`, `debounceTrailing`, `debounceLeadingTrailing`
-- `debounceAsync(fn, delay)` — cancela llamadas anteriores
-- `debounceAsyncWithImmediate(fn, delay)` — ejecuta inmediato + debounce
-- `debounceAsyncValidator(fn, delay)` — retorna `null` si cancelado (útil para validators de formularios)
-
-### `validations.ts`
-Funciones booleanas: `isValidEmail`, `isValidURL`, `isValidPhoneNumber`, `isValidDate`, `isStrongPassword`, `isValidCreditCard`, `isValidIP`, `isValidSSN`, `isValidZIP`, `isValidHexColor`, `validateLetters`, `validateAlphanumeric`, `validateNumbers`, `isValidUsername`, `isValidAge`, `isValidExpiryDate`.
-
-### `exports.ts`
-Descargas desde browser vía Blob:
-- `exportToCSV(data, filename)`
-- `exportToExcel(data, filename)`
-- `exportToJSON(data, filename)`
-- `exportToXML(data, filename, rootElement)`
-- `exportToText(data, filename)`
-
-### `dates.ts`
-- `parseDate(str)`, `formatDate(date, format)`
-- `daysBetween(a, b)`, `addDays(date, n)`, `subtractDays(date, n)`
-- `isLeapYear(year)`, `getStartOfMonth(date)`, `getEndOfMonth(date)`
-- `calculateAge(birthdate)`, `daysToNextBirthday(birthdate)`, `ageAtDate(birthdate, date)`
-
-### `strings.ts`
-- `toCamelCase`, `toKebabCase`, `upperFirst`, `lowerFirst`
-- `removeAccent`, `reverseString`, `truncateString`, `countWords`
-- `replaceAll`, `generateRandomString`
-
-### `io.ts`
-Manipulación del DOM/teclado: `disableRightClick`, `disableF12Key`, `clickOutside`, `addCustomKeyboardShortcut`, `registerKeyboardShortcuts`, `createKeyMap`, `detectKeyHold`, `simulateKeyPress`, `disableCopy`, etc.
-
-### `files.ts`
-- `readFileAsText(file)`, `readFileAsDataURL(file)` — retornan Promises
-- `formDataToObject(formData)`, `stringToBlob`, `bufferToBlob`
-- `downloadBlob(blob, filename)`, `blobToFormData(blob, filename, fieldName)`
-
-### `browser.ts`
-- `openWindow(url, target?)`, `copyToClipboard(text)`, `scrollToTop()`, `getQueryParam(name)`
-
-### `errors.ts`
-```typescript
-handleError(error: unknown): ErrorInfo | undefined
-```
-Detecta tipo de error (`BaseError`, `AuthError`, `NetworkError`, `ValidationError`, `ServerError`, `AxiosError`, `Error`, string) y loggea con `console.group` + estilos CSS en consola. Retorna `{ message, type }`.
+1. Reads the refresh token from storage using the session's persistence.
+2. POSTs to `endpoints.REFRESH` with `{ [getRefreshTokenBodyKey()]: refreshToken }`.
+3. Extracts new tokens via `getRefreshTokenPathsConfig()`.
+4. Stores the new tokens under the same persistence.
+5. On failure → cleans credentials, calls `onRefreshFailed` (or `window.location.reload()`), rethrows.
 
 ---
 
 ## Errors — `src/errors/`
 
-Jerarquía:
 ```
-BaseError (abstract)
-├── NetworkError  (code: 'NETWORK_ERROR', statusCode variable)
-│   ├── .fromAxiosError(error)
-│   └── .fromFetchError(error)
-├── AuthError     (code: 'AUTH_ERROR', statusCode: 401)
-│   ├── .unauthorized(), .tokenExpired(), .tokenInvalid(), .tokenMissing()
-├── ValidationError (code: 'VALIDATION_ERROR', statusCode: 422)
-│   ├── issues: ValidationIssue[]
-│   ├── .fromIssues(issues), .fromField(field, message, value?)
-└── ServerError   (code: 'SERVER_ERROR', statusCode variable)
-    ├── .internal(), .badGateway(), .serviceUnavailable(), .gatewayTimeout()
+BaseError (abstract, context: Record<string, unknown>)
+├── NetworkError    (code: 'NETWORK_ERROR', statusCode?)
+│   ├── static fromAxiosError(error)
+│   └── static fromFetchError(error)
+├── AuthError       (code: 'AUTH_ERROR', statusCode: 401)
+│   └── static unauthorized/tokenExpired/tokenInvalid/tokenMissing
+├── ValidationError (code: 'VALIDATION_ERROR', statusCode: 422, issues: ValidationIssue[])
+│   └── static fromIssues/fromField
+└── ServerError     (code: 'SERVER_ERROR', statusCode: number)
+    └── static internal/badGateway/serviceUnavailable/gatewayTimeout
 ```
 
-`BaseError.toJSON()` retorna objeto serializable con `name`, `message`, `code`, `statusCode`, `timestamp`, `context`, `stack`.
+**`normalizeHttpError(error)` mapping**
 
----
-
-## Enums — `src/enums/`
-
-| Enum | Valores principales |
+| Input | Output |
 |---|---|
-| `ContentTypeEnum` | `JSON`, `FORM_DATA`, `FORM_URLENCODED`, `TEXT_PLAIN`, `XML`, `HTML`, `CSV`, `PDF`, `OCTET_STREAM` |
-| `ExceptionEnum` | HTTP status codes completos 100-511 + `NET_WORK_ERROR=10000`, `PAGE_NOT_DATA=10100` |
-| `ScreenSize` | `XS`, `SM`, `MD`, `LG`, `XL`, `XXL` |
-| `ScreenBreakpoint` | `XS=480`, `SM=576`, `MD=768`, `LG=992`, `XL=1200`, `XXL=1600` |
-| `KeyCodeEnum` | `UP=38`, `DOWN=40`, `ENTER=13`, `ESC=27`, etc. |
-| `StorageKeyEnum` | `TOKEN_KEY`, `LOCALE_KEY`, `USER_INFO_KEY`, etc. |
-| `ErrorEnum` | `WARNING`, `ERROR`, `CRITICAL`, `NETWORK`, `AUTHENTICATION`, etc. |
-| Image/Audio/Video/File/Font types | Para validación de tipos de archivo |
+| Already `BaseError` | Returned unchanged (idempotent) |
+| HTTP shape with `status ∈ {401, 403}` | `AuthError` |
+| HTTP shape with `status === 422` | `ValidationError` (with `issues[]` extracted) |
+| HTTP shape with `status >= 500` | `ServerError` |
+| Any other HTTP shape | `NetworkError` |
+| Native `fetch` TypeError | `NetworkError.fromFetchError` |
+| Anything else | Returned unchanged |
 
-`screenMap`: `Map<ScreenSize, number>` para lookups de breakpoints.
+**Issue extraction** (best-effort, degrades to `[]`):
+- Spring Boot `BindingResult` — `{ errors: [{ field, defaultMessage, rejectedValue }] }`
+- NestJS `class-validator` — `{ message: string[] }`
+- JSON:API — `{ errors: [{ source: { pointer }, detail, title }] }`
+- Laravel — `{ errors: { field: string[] } }`
+
+Original payload is preserved in `error.context.responseData`.
 
 ---
 
-## Types — `src/types/`
+## Encryption + storage — `src/utils/`
 
-| Tipo/Interface | Descripción |
+### `encryption.ts`
+AES-CBC via Web Crypto. Key derivation: `SHA-256(secret)`. Random 16-byte IV prefixed to the ciphertext (hex output).
+
+```typescript
+encrypt(plaintext: string, key: string): Promise<string>
+decrypt(ciphertext: string, key: string): Promise<string>
+```
+
+### `storage.ts`
+Reads/writes encrypted values across `localStorage` / `sessionStorage` / cookies. In SSR (no `window`) it falls back to cookies. `location = 'any'` reads in order session → local → cookie.
+
+### `ssr.ts`
+`isServer`, `isClient`, `getStorage()`, `getSessionStorage()`, `getCookieStorage()`, `getPreferredStorage()`, `type CookieOptions`.
+
+### `retry.ts`
+`retryWithBackoff(fn, config)`. Defaults: 3 retries, 1s → 10s cap, x2 multiplier. Retries on `statusCode >= 500`, `408`, `429`, or network-level errors. Configurable via `retryCondition`.
+
+---
+
+## Utils (survivors) — `src/utils/objects.ts`
+
+- `safeGet(obj, keys[]): unknown` — used internally by `extractTokens` to dereference dot-notation paths.
+- `objectToFormData(obj, form?, namespace?): FormData` — recursive; handles `File` / `Blob` / `ArrayBuffer` / `Date` (ISO) / arrays / booleans (`"0"` / `"1"`). Skips `null` / `undefined`. Guards against prototype pollution keys.
+
+Also re-exported as a named export from `@/rest/RestStd` for convenience.
+
+---
+
+## Types (public surface)
+
+| Type | Source |
 |---|---|
-| `ArexVueCoreOptions` | Opciones del plugin |
-| `AxiosServiceOptions` | `{ baseURL, headers?, timeout?, withCredentials? }` |
-| `Fetcher` | `(config: FetcherConfig) => Promise<any>` |
-| `FetcherConfig` | `{ method, url, params?, data?, headers? }` |
-| `LocationPreference` | `"local" \| "session" \| "cookie" \| "any"` |
-| `AuthTokenPaths` | `{ accessTokenPath?, refreshTokenPath? }` |
-| `AuthResponse` | `{ [key: string]: any }` |
-| `EndpointsConfig` | `{ LOGIN, REFRESH, LOGOUT }` |
-| `TokensConfig` | `{ ACCESS_TOKEN, REFRESH_TOKEN }` (readonly) |
-| `SessionConfig` | `{ SESSION_ID, PERSISTENCE }` |
-| `DecodedJwtPayload` | `{ exp?, iat?, sub?, iss?, aud?, ...rest }` |
-| `TokenValidationResult` | `{ accessToken: string, refreshToken: string }` |
-| `ValidationIssue` | `{ field, message, value? }` |
-| `RetryConfig` | `{ retries?, retryDelay?, maxRetryDelay?, backoffMultiplier?, retryCondition? }` |
-| `RestStdOptions.*` | `GetAllOptions`, `GetOneOptions`, `CreateOptions`, `UpdateOptions`, `PatchOptions`, `DeleteOptions`, `BulkCreateOptions`, `BulkUpdateOptions`, `BulkDeleteOptions`, `UpsertOptions`, `CustomRequestOptions` |
+| `ArexVueCoreOptions` | Plugin options |
+| `AxiosServiceOptions` | `{ baseURL, headers?, timeout?, withCredentials?, setupAuthInterceptors? }` |
+| `Fetcher`, `FetcherConfig` | Fetcher abstraction |
+| `LocationPreference` | `'local' \| 'session' \| 'cookie' \| 'any'` |
+| `AuthTokenPaths`, `AuthResponse` | Auth |
+| `EndpointsConfig`, `TokensConfig`, `SessionConfig` | Config shapes |
+| `AppKeyConfig`, `TokenValidationResult` | Config / internal |
+| `RestStd*Options` | `GetAll`, `GetOne`, `Create`, `Update`, `Patch`, `Delete`, `BulkCreate`, `BulkUpdate`, `BulkDelete`, `Upsert`, `CustomRequest` |
+| `RetryConfig` | `retry.ts` |
+| `ValidationIssue` | `errors/ValidationError` |
+| `CookieOptions` | `utils/ssr` |
 
 ---
 
-## Build y release
+## TypeScript paths
+
+```
+@/*          → src/*
+@config/*    → src/config/*
+@rest/*      → src/rest/*
+@services/*  → src/services/*
+@types/*     → src/types/*
+@utils/*     → src/utils/*
+```
+
+Aliases are rewritten to relative paths in the generated `.d.ts` files by `scripts/fix-dts-aliases.mjs` at build time.
+
+---
+
+## Build & release
 
 ```bash
-pnpm build             # rollup -c → dist/index.mjs
-pnpm release           # bump patch + changelog + commit + push + npm publish
-pnpm release:minor     # bump minor
-pnpm release:major     # bump major
+pnpm install
+pnpm build           # rollup + fix .d.ts aliases
+pnpm eslint src/     # currently 0 errors, 0 warnings
+pnpm release         # patch bump
+pnpm release:minor
+pnpm release:major
 ```
 
-El build usa `@rollup/plugin-typescript`. Genera solo ESM. Los peerDeps son externos.
+Rollup emits ESM only (`dist/index.mjs`) with `.d.ts` bundled. Externals: `vue`, `axios`, `ofetch`, `jwt-decode`, `uuid`.
 
-ESLint: `eslint.config.js` con flat config — `@eslint/js`, `typescript-eslint`, `eslint-plugin-vue`.
-
-TypeScript paths en `tsconfig.json`:
-```
-@/* → src/*
-@composables/* → src/composables/*
-@config/* → src/config/*
-@enums/* → src/enums/*
-@rest/* → src/rest/*
-@services/* → src/services/*
-@types/* → src/types/*
-@utils/* → src/utils/*
-```
-
-**No hay tests.** No hay dev server. La validación se hace build + eslint manual.
+No tests, no dev server.
 
 ---
 
-## Flujo de autenticación completo
+## End-to-end auth flow
 
-1. `app.use(ArexVueCore, options)` → inicializa todos los configs
-2. `useAuth().login(credentials, 'local')` →
-   - POST a `LOGIN` endpoint
-   - `extractAndValidateTokens(response, tokenPaths)` extrae con dot-notation
-   - `configSession({ persistencePreference: 'local' })` guarda preferencia
-   - `storeTokens(access, refresh, 'local')` → encripta con AES-CBC y guarda en localStorage
-3. Cada request Axios →
-   - Interceptor request: `getAuthToken(appKey, 'any')` → `Authorization: Bearer <token>`
-   - Si responde 401 → `refreshTokens()` → nuevo token → reintenta original
-4. `useAuth().logout()` →
-   - POST a `LOGOUT`
-   - `cleanCredentials(persistence)` borra tokens
-   - `window.location.reload()`
+1. `app.use(ArexVueCore, options)` → singletons wired.
+2. `useAuth().login(credentials, 'local')` → POST `/login` → `extractAndValidateTokens` → `configSession({ persistencePreference: 'local' })` → `storeTokens(access, refresh, 'local')` (AES + localStorage).
+3. Each axios call → request interceptor injects `Authorization: Bearer <access>`.
+4. On 401 (not the refresh call itself) → interceptor queues concurrent requests, calls `refreshTokens()`, releases queue with the fresh token, retries original.
+5. On refresh failure → `cleanCredentials(persistence)` + `onRefreshFailed()` (fallback: reload).
+6. `useAuth().logout()` → POST `/logout` (errors ignored) → `cleanCredentials` → `onLogout()` (fallback: reload).

@@ -1,5 +1,4 @@
 import { getEndpointsConfig } from "@config/global/endpointsConfig";
-import { handleError } from "@utils/errors";
 import {
   cleanCredentials,
 } from "@/services/credentials";
@@ -58,8 +57,10 @@ export function useAuth(fetcher?: Fetcher) {
         url: endpoints.LOGOUT,
         data: params,
       });
-    } catch (error) {
-      handleError(error);
+    } catch {
+      // Logout MUST proceed regardless of network/server outcome — the user
+      // intent is to terminate the session locally even if the backend call
+      // fails. Errors are swallowed by design.
     } finally {
       await cleanCredentials(await getSessionPersistence());
       const { onLogout } = getCallbacksConfig();
@@ -86,29 +87,22 @@ export function useAuth(fetcher?: Fetcher) {
     persistence: LocationPreference,
     tokenPaths: AuthTokenPaths = getTokenPathsConfig()
   ): Promise<AuthResponse> => {
-    try {
-      const data = await getFetcher()({
-        method: 'POST',
-        url: endpoints.LOGIN,
-        data: params,
-      }) as AuthResponse;
+    const data = await getFetcher()({
+      method: 'POST',
+      url: endpoints.LOGIN,
+      data: params,
+    }) as AuthResponse;
 
-      const { accessToken, refreshToken } = extractAndValidateTokens(
-        data,
-        tokenPaths,
-        "LOGIN"
-      );
+    const { accessToken, refreshToken } = extractAndValidateTokens(
+      data,
+      tokenPaths,
+      "LOGIN"
+    );
 
-      configSession({
-        persistencePreference: persistence,
-      });
+    configSession({ persistencePreference: persistence });
 
-      await storeTokens(accessToken, refreshToken, persistence);
-      return data;
-    } catch (error) {
-      handleError(error);
-      throw error;
-    }
+    await storeTokens(accessToken, refreshToken, persistence);
+    return data;
   };
 
   return {

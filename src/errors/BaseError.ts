@@ -2,12 +2,9 @@ export abstract class BaseError extends Error {
   abstract readonly code: string;
   abstract readonly statusCode?: number;
   readonly timestamp: Date;
-  readonly context?: Record<string, any>;
+  readonly context?: Record<string, unknown>;
 
-  constructor(
-    message: string,
-    context?: Record<string, any>
-  ) {
+  constructor(message: string, context?: Record<string, unknown>) {
     super(message);
     this.name = this.constructor.name;
     this.timestamp = new Date();
@@ -27,4 +24,3 @@ export abstract class BaseError extends Error {
     };
   }
 }
-

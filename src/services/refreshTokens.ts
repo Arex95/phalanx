@@ -1,9 +1,9 @@
 import { getAuthRefreshToken } from '@/services/credentials';
 import { getSessionPersistence } from '@config/global/sessionConfig';
-import { handleError } from '@utils/errors';
 import { getAppKey } from '@config/global/keyConfig';
 import { getEndpointsConfig } from '@config/global/endpointsConfig';
 import { getRefreshTokenPathsConfig } from '@config/global/tokenPathsConfig';
+import { getRefreshTokenBodyKey } from '@config/global/refreshBodyKeyConfig';
 import { getCallbacksConfig } from '@config/global/callbacksConfig';
 import { AuthResponse, AuthTokenPaths, Fetcher } from '@/types';
 import { extractAndValidateTokens } from '@services/extractTokens';
@@ -14,15 +14,13 @@ import { getDefaultAuthFetcher } from '@/config/auth/authFetcher';
 /**
  * Refreshes the access and refresh tokens.
  *
- * Fixes over the original:
- *   1. Uses `persistence` (the location where tokens were originally stored)
- *      instead of hardcoding `"any"` — so cookies / localStorage / sessionStorage
- *      are searched in the right place.
- *   2. Sends the refresh token in the request body using the configured
- *      `refreshTokenPaths.refreshTokenPath` as the body key, so the backend
- *      always receives it regardless of withCredentials or cookie settings.
+ * The refresh token is sent in the request body under the key configured via
+ * `refreshTokenBodyKey` (default `'refresh_token'`). This is a flat, literal
+ * key — it has no relationship with the dot-notation paths used to extract
+ * tokens from the response.
  *
- * On failure: clears credentials and calls `onRefreshFailed` callback.
+ * On failure: clears credentials, invokes the `onRefreshFailed` callback if
+ * configured, and rethrows so callers can react.
  */
 export const refreshTokens = async (fetcher?: Fetcher): Promise<AuthResponse> => {
   const tokenPaths: AuthTokenPaths = getRefreshTokenPathsConfig();
@@ -32,19 +30,16 @@ export const refreshTokens = async (fetcher?: Fetcher): Promise<AuthResponse> =>
   const getFetcher  = (): Fetcher => fetcher ?? getDefaultAuthFetcher();
 
   try {
-    // Use persistence (not hardcoded "any") — tokens live where they were stored
     const refreshToken = await getAuthRefreshToken(secretKey, persistence);
 
     if (!refreshToken) {
-      throw new Error('TOKEN_MISSING: No refresh token found in storage.');
+      throw new Error('[arex-core] No refresh token found in storage.');
     }
 
-    // Send refresh token in the request body using the configured path key
-    const refreshBodyKey = tokenPaths.refreshTokenPath ?? 'refresh_token';
     const data = await getFetcher()({
       method: 'POST',
       url: endpoints.REFRESH,
-      data: { [refreshBodyKey]: refreshToken },
+      data: { [getRefreshTokenBodyKey()]: refreshToken },
     }) as AuthResponse;
 
     const { accessToken, refreshToken: newRefreshToken } = extractAndValidateTokens(
@@ -57,7 +52,6 @@ export const refreshTokens = async (fetcher?: Fetcher): Promise<AuthResponse> =>
 
     return data;
   } catch (error) {
-    handleError(error);
     await cleanCredentials(persistence);
     const { onRefreshFailed } = getCallbacksConfig();
     if (onRefreshFailed) {

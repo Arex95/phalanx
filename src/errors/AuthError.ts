@@ -6,7 +6,7 @@ export class AuthError extends BaseError {
 
   constructor(
     message: string = 'Authentication failed',
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ) {
     super(message, context);
   }
@@ -27,4 +27,3 @@ export class AuthError extends BaseError {
     return new AuthError('Authentication token is missing');
   }
 }
-

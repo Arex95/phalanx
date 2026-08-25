@@ -1,26 +1,23 @@
 /**
- * Configuration object for making HTTP requests.
- * This interface is agnostic of any specific HTTP library.
+ * Configuration object for making HTTP requests. Agnostic of any specific
+ * HTTP library so a single contract works for axios, ofetch, native fetch,
+ * or anything custom.
  */
 export interface FetcherConfig {
-    /** HTTP method (GET, POST, PUT, DELETE, PATCH, etc.) */
+    /** HTTP method (GET, POST, PUT, DELETE, PATCH, …). */
     method: string;
-    /** URL endpoint (can be relative or absolute) */
+    /** URL endpoint (relative or absolute). */
     url: string;
-    /** Query parameters (will be converted to query string) */
-    params?: Record<string, any>;
-    /** Request body data */
-    data?: any;
-    /** HTTP headers */
+    /** Query parameters; serialized to the query string by the fetcher. */
+    params?: Record<string, unknown>;
+    /** Request body. Pass a `FormData`/`Blob`/`ArrayBuffer` for binary payloads. */
+    data?: unknown;
+    /** HTTP headers. */
     headers?: Record<string, string>;
 }
 
 /**
- * A generic fetcher function that accepts FetcherConfig and returns a Promise.
- * This function is agnostic of any specific HTTP library (axios, ofetch, fetch, etc.).
- * 
- * @param config - The request configuration
- * @returns A promise that resolves with the response data
+ * A fetcher takes a {@link FetcherConfig} and returns a `Promise<unknown>`.
+ * Consumers narrow the return type at the call site (e.g. `RestStd.getOne<User>(...)`).
  */
-export type Fetcher = (config: FetcherConfig) => Promise<any>;
-
+export type Fetcher = (config: FetcherConfig) => Promise<unknown>;

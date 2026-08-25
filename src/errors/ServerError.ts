@@ -7,7 +7,7 @@ export class ServerError extends BaseError {
   constructor(
     message: string = 'Server error occurred',
     statusCode: number = 500,
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ) {
     super(message, context);
     this.statusCode = statusCode;
@@ -29,4 +29,3 @@ export class ServerError extends BaseError {
     return new ServerError(message || 'Gateway timeout', 504);
   }
 }
-
