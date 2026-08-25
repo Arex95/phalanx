@@ -1,10 +1,8 @@
 import { getTokenConfig } from '@config/global/tokensConfig';
 import { getDecryptedItem, storeEncryptedItem } from '@utils/storage';
 import { TokensConfig } from '@/types';
-import { getSessionPersistence } from '@config/global/sessionConfig';
 import { LocationPreference } from '@/types/SessionConfig';
 import { jwtDecode } from 'jwt-decode';
-import { handleError } from '@utils/errors';
 import { getAppKey } from '@/config/global';
 import { getStorage, getSessionStorage, getCookieStorage, isServer } from '@utils/ssr';
 
@@ -118,19 +116,16 @@ export const verifyAuth = async (): Promise<boolean> => {
     const currentTime = Date.now() / 1000;
 
     if (typeof decoded.exp !== 'number') {
-      handleError('TOKEN_INVALID: Invalid expiration format');
       await cleanCredentials('any');
       return false;
     }
 
     if (decoded.exp <= currentTime) {
-      handleError('TOKEN_EXPIRED: Token is expired');
       return false;
     }
 
     return true;
   } catch {
-    handleError('TOKEN_INVALID: Could not decode token');
     await cleanCredentials('any');
     return false;
   }

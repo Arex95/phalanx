@@ -1,12 +1,10 @@
 # @arex95/vue-core
 
-**Stop rewriting the same API boilerplate in every Vue project.**
+**REST + Auth foundation for Vue 3 apps.**
 
-`@arex95/vue-core` gives you a battle-tested foundation for REST communication, encrypted token auth, and session management — so you ship features instead of infrastructure.
+A base class for your REST resources. Automatic JWT refresh on 401. Encrypted token storage. A typed error hierarchy you can actually branch on. Nothing else.
 
 ```sh
-npm install @arex95/vue-core
-# or
 pnpm add @arex95/vue-core
 ```
 
@@ -14,15 +12,18 @@ pnpm add @arex95/vue-core
 
 ## Why this library?
 
-Every Vue project ends up with the same problem: you need authentication, you need a clean way to talk to your REST API, and you need it to work the same way across every service file. The usual answer is copying patterns between projects and hoping nothing drifts.
+Every Vue app repeats the same wiring: an axios instance with a Bearer interceptor, a queue that pauses requests while a refresh is in flight, encrypted tokens in `localStorage`, and a class that turns `/users`, `/products`, `/orders` into consistent CRUD calls.
 
-`@arex95/vue-core` is the answer:
+`@arex95/vue-core` is that wiring — nothing more:
 
-- **`RestStd`** — one class to extend, and your entire API layer is consistent. No more hand-writing `axios.get('/users/'+id)` everywhere.
-- **Fetcher-agnostic** — bring Axios, `ofetch`, the native Fetch API, or your own fetcher. The library doesn't care.
-- **Encrypted token storage** — JWTs stored with AES-CBC-256 via the Web Crypto API. Not plain text in localStorage.
-- **Automatic token refresh** — 401? The library refreshes silently and retries. Your components never see it.
-- **Works in Nuxt SSR** — `setupAuthInterceptors: false` gives you full control for server-side environments.
+- **`RestStd`** — extend, override `resource`, get `getAll` / `getOne` / `create` / `update` / `patch` / `delete` / `bulk*` / `upsert` / `customRequest`.
+- **Single-flight refresh** — a 401 pauses concurrent requests, refreshes once, retries the queue transparently.
+- **Encrypted token storage** — AES-CBC via Web Crypto. Not plain text.
+- **Typed errors** — `AuthError` / `ValidationError` / `ServerError` / `NetworkError` are actually produced by the normalizer; `instanceof` works.
+- **Fetcher-agnostic** — Axios by default, `ofetch` supported, bring your own.
+- **SSR-friendly** — set `setupAuthInterceptors: false` and handle headers yourself in Nuxt.
+
+What we deliberately do **not** ship: debounces, breakpoints, string helpers, date utilities, `useFilter`/`useSorter`/`usePagination`, activity monitors. Those live in `@vueuse/core`, `date-fns`, `@tanstack/vue-query` — libraries that do them better than we ever will.
 
 ---
 
@@ -30,10 +31,11 @@ Every Vue project ends up with the same problem: you need authentication, you ne
 
 ```typescript
 // main.ts
+import { createApp } from 'vue';
 import { ArexVueCore } from '@arex95/vue-core';
 
 app.use(ArexVueCore, {
-  appKey:  import.meta.env.VITE_APP_KEY, // used to encrypt tokens at rest
+  appKey: import.meta.env.VITE_APP_KEY, // encrypts tokens at rest
 
   endpoints: {
     login:   'auth/login',
@@ -42,35 +44,40 @@ app.use(ArexVueCore, {
   },
 
   tokenKeys: {
-    accessToken:  'myapp_access',   // storage key name
+    accessToken:  'myapp_access',
     refreshToken: 'myapp_refresh',
   },
 
-  // dot-notation paths to find tokens in your API response
+  // Dot-notation paths to extract tokens from the login response
   tokenPaths: {
-    accessToken:  'token',          // response.token
-    refreshToken: 'refresh_token',  // response.refresh_token
+    accessToken:  'data.access_token',
+    refreshToken: 'data.refresh_token',
   },
   refreshTokenPaths: {
-    accessToken:  'token',
-    refreshToken: 'refresh_token',
+    accessToken:  'data.access_token',
+    refreshToken: 'data.refresh_token',
   },
+
+  // Body key used when POSTing to the refresh endpoint.
+  // Default: 'refresh_token'. Set to 'refreshToken' for Spring / NestJS backends.
+  refreshTokenBodyKey: 'refresh_token',
 
   axios: {
     baseURL: import.meta.env.VITE_API_URL,
     headers: { 'X-API-Key': import.meta.env.VITE_API_KEY },
-    setupAuthInterceptors: true,    // false for Nuxt SSR
+    setupAuthInterceptors: true, // set to false for Nuxt SSR
   },
 
   onRefreshFailed: () => router.push('/login'),
+  onLogout:        () => router.push('/login'),
 });
 ```
 
 ---
 
-## RestStd — the core pattern
+## `RestStd` — the core pattern
 
-Extend `RestStd` and get a full CRUD interface for free:
+Extend and go:
 
 ```typescript
 import { RestStd } from '@arex95/vue-core';
@@ -79,22 +86,21 @@ export class ProductService extends RestStd {
   static override resource = 'catalog/products';
 }
 
-// Now use it anywhere — with TanStack Query, in composables, wherever.
-const products = await ProductService.getAll({ params: { page: 1 } });
-const product  = await ProductService.getOne({ id: 42 });
-const created  = await ProductService.create({ data: { name: 'Widget' } });
-await ProductService.patch({ id: 42, data: { price: 9.99 } });
+const products = await ProductService.getAll<Product[]>({ params: { page: 1 } });
+const product  = await ProductService.getOne<Product>({ id: 42 });
+await ProductService.create<Product, ProductPayload>({ data: { name: 'Widget' } });
+await ProductService.patch<Product>({ id: 42, data: { price: 9.99 } });
 await ProductService.delete({ id: 42 });
 ```
 
-Need a custom endpoint? `customRequest` has you covered:
+### Custom endpoints
 
 ```typescript
 export class CheckoutService extends RestStd {
   static override resource = 'sales/checkouts';
 
   static complete(data: PaymentData) {
-    return this.customRequest({
+    return this.customRequest<CompletionResponse>({
       method: 'POST',
       url: 'sales/checkout/complete',
       data,
@@ -103,7 +109,28 @@ export class CheckoutService extends RestStd {
 }
 ```
 
-All requests go through the same globally configured Axios instance — same base URL, same headers, same auth interceptors. Consistent by default.
+### File uploads
+
+Pass a `FormData` (or a `Blob` / `ArrayBuffer`) and the library sends it as multipart, letting the underlying client add the correct boundary. For plain objects, convert with the exported helper:
+
+```typescript
+import { objectToFormData } from '@arex95/vue-core';
+
+await ProductService.create({
+  data: objectToFormData({ name, image: file, tags: ['a', 'b'] }),
+});
+```
+
+### Retry with backoff
+
+```typescript
+export class OrderService extends RestStd {
+  static override resource = 'orders';
+  static retryConfig = { retries: 3, retryDelay: 1000 };
+}
+```
+
+Retries kick in on 5xx, 408, 429, and network errors — configurable via `retryCondition`.
 
 ---
 
@@ -114,116 +141,119 @@ import { useAuth, verifyAuth, cleanCredentials } from '@arex95/vue-core';
 
 const { login, logout } = useAuth();
 
-// 'local'   → localStorage  (persists across browser sessions)
-// 'session' → sessionStorage (cleared on tab close)
-// 'cookie'  → document.cookie
+// Storage: 'local' | 'session' | 'cookie'
 await login({ email, password }, 'local');
 
-// Check if the user has a valid, non-expired token
-const isAuthed = await verifyAuth(); // → boolean
+const isAuthed = await verifyAuth(); // decodes JWT, checks exp
 
-// Logout — clears ALL storage locations so no token survives
-await cleanCredentials('any');
-await logout();
+await logout();                // POST /logout, clears storage, calls onLogout
+await cleanCredentials('any'); // wipe every storage location manually
 ```
 
-Tokens are encrypted with **AES-CBC-256** before hitting any storage. Even if someone reads your localStorage, they get ciphertext.
+### Automatic refresh
 
-### Automatic token refresh
-
-When `setupAuthInterceptors: true`, every 401 response triggers a silent refresh:
+With `setupAuthInterceptors: true`, every 401 triggers a silent refresh:
 
 ```
 Request → 401
-  → POST /auth/refresh (with refresh_token in body)
-  → New tokens stored
-  → Original request retried
-  → Response returned to your code as if nothing happened
+  → POST /auth/refresh with { [refreshTokenBodyKey]: <token> }
+  → new tokens stored (same storage location as before)
+  → original request retried with the new access token
 ```
 
-If the refresh also fails, `onRefreshFailed` is called — typically a redirect to `/login`.
+Concurrent requests that hit 401 while a refresh is in flight are queued and released with the fresh token — a single refresh per burst. If the refresh itself fails, `onRefreshFailed` is called (fallback: `window.location.reload()`).
+
+---
+
+## Typed errors
+
+The library normalizes every HTTP error into a discriminable class before it reaches your `catch`:
+
+```typescript
+import { AuthError, ValidationError, ServerError, NetworkError } from '@arex95/vue-core';
+
+try {
+  await ProductService.create({ data });
+} catch (error) {
+  if (error instanceof AuthError)       return router.push('/login');
+  if (error instanceof ValidationError) {
+    error.issues.forEach(i => setFieldError(i.field, i.message));
+    return;
+  }
+  if (error instanceof ServerError)     return showToast('Server unavailable, retrying…');
+  if (error instanceof NetworkError)    return showToast(`Network error ${error.statusCode ?? ''}`);
+  throw error;
+}
+```
+
+Mapping:
+
+| Status | Class | Extras |
+|---|---|---|
+| 401 / 403 | `AuthError` | — |
+| 422 | `ValidationError` | `.issues[]` extracted from common shapes (Spring, NestJS, JSON:API, Laravel) |
+| 5xx | `ServerError` | `.statusCode` |
+| other HTTP | `NetworkError` | `.statusCode`, `.originalError` |
+| native `fetch` TypeError | `NetworkError` | via `fromFetchError` |
+
+Original payload is always preserved in `error.context.responseData`.
 
 ---
 
 ## Fetcher-agnostic
 
-Don't want Axios? Swap it out:
-
 ```typescript
 import { createOfetchFetcher, configAuthFetcher } from '@arex95/vue-core';
 
-// Use ofetch globally for auth requests
+// Use ofetch for auth requests
 configAuthFetcher(createOfetchFetcher('https://api.example.com'));
 
-// Or pass a custom fetcher to a specific RestStd subclass
+// Or per-service
 export class UserService extends RestStd {
-  static fetchFn = createOfetchFetcher('https://users.example.com');
   static override resource = 'users';
+  static fetchFn = createOfetchFetcher('https://users.example.com');
 }
 ```
 
----
-
-## Token Storage
-
-| location | Stores in | Persistence | `"any"` reads it? |
-|----------|-----------|-------------|-------------------|
-| `'local'` | localStorage | Until explicitly cleared | ✅ |
-| `'session'` | sessionStorage | Until tab closes | ✅ |
-| `'cookie'` | document.cookie | Configurable expiry | ✅ (last) |
-| `'any'` | localStorage | Until explicitly cleared | — |
-
-`'local'` is the recommended default for SPAs — persistent, simple, and always found by the automatic interceptors.
+Any function matching `(config: FetcherConfig) => Promise<unknown>` works. `ofetch` is an optional peer dependency — it's only imported when you actually call `createOfetchFetcher`.
 
 ---
 
-## Nuxt / SSR Integration
+## Token storage
+
+| Location | Stores in | Persistence | Read by `'any'`? |
+|---|---|---|---|
+| `'local'` | `localStorage` | Until cleared | ✅ |
+| `'session'` | `sessionStorage` | Until tab close | ✅ |
+| `'cookie'` | `document.cookie` | Configurable expiry | ✅ |
+| `'any'` | `localStorage` on write | — | — |
+
+Tokens are encrypted with AES-CBC-256 (Web Crypto) before hitting any location. `'local'` is the recommended default for SPAs.
+
+---
+
+## Nuxt / SSR
 
 ```typescript
 // plugins/arex-core.ts
 export default defineNuxtPlugin({
   enforce: 'pre',
-  setup() {
+  setup(nuxt) {
     const config = useRuntimeConfig();
-    app.use(ArexVueCore, {
+    nuxt.vueApp.use(ArexVueCore, {
       appKey: config.public.appKey,
       // ...
       axios: {
         baseURL: config.public.apiUrl,
-        setupAuthInterceptors: false, // handle headers in your own plugin
+        setupAuthInterceptors: false, // you attach headers manually
       },
-      onRefreshFailed: () => navigateTo('/auth/login'),
+      onRefreshFailed: () => navigateTo('/login'),
     });
-  }
+  },
 });
 ```
 
-With `setupAuthInterceptors: false` you control exactly how `Authorization` and other headers are attached — essential for SSR where `localStorage` doesn't exist.
-
----
-
-## Error Handling
-
-```typescript
-import { handleError, NetworkError, AuthError, ValidationError } from '@arex95/vue-core';
-
-try {
-  await login(credentials, 'local');
-} catch (error) {
-  if (error instanceof AuthError)       showError('Invalid credentials');
-  if (error instanceof NetworkError)    showError(`Connection error ${error.statusCode}`);
-  if (error instanceof ValidationError) error.issues.forEach(i => setFieldError(i.field, i.message));
-}
-```
-
----
-
-## Full API Reference
-
-→ [docs/authentication.md](./docs/authentication.md)
-→ [docs/configuration.md](./docs/configuration.md)
-→ [docs/api-reference.md](./docs/api-reference.md)
-→ [EXAMPLES.md](./EXAMPLES.md)
+With `setupAuthInterceptors: false` the library skips interceptor setup and lets you inject the `Authorization` header from your own server plugin (essential for SSR where `localStorage` doesn't exist).
 
 ---
 
@@ -231,7 +261,8 @@ try {
 
 - Vue 3
 - Node.js 15+ (Web Crypto API required for token encryption)
-- TypeScript recommended
+- Peer deps: `vue`, `axios`, `jwt-decode`, `uuid`
+- Optional peer dep: `ofetch` (only needed if you use `createOfetchFetcher`)
 
 ## License
 

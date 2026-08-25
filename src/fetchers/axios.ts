@@ -25,7 +25,7 @@ export function createAxiosFetcher(axiosInstance: AxiosInstance): Fetcher {
     return async (config: FetcherConfig): Promise<unknown> => {
         try {
             const response = await axiosInstance({
-                method: config.method as any,
+                method: config.method,
                 url: config.url,
                 params: config.params,
                 data: config.data,

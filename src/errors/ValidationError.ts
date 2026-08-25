@@ -3,7 +3,7 @@ import { BaseError } from './BaseError';
 export interface ValidationIssue {
   field: string;
   message: string;
-  value?: any;
+  value?: unknown;
 }
 
 export class ValidationError extends BaseError {
@@ -14,7 +14,7 @@ export class ValidationError extends BaseError {
   constructor(
     message: string = 'Validation failed',
     issues: ValidationIssue[] = [],
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ) {
     super(message, context);
     this.issues = issues;
@@ -27,11 +27,10 @@ export class ValidationError extends BaseError {
     );
   }
 
-  static fromField(field: string, message: string, value?: any): ValidationError {
+  static fromField(field: string, message: string, value?: unknown): ValidationError {
     return new ValidationError(
       `Validation failed for field "${field}"`,
       [{ field, message, value }]
     );
   }
 }
-

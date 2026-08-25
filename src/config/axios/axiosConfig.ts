@@ -10,7 +10,6 @@ import { AxiosServiceOptions } from '@/types/AxiosServiceOptions';
 import { getAuthToken } from '@/services/credentials';
 import { getSessionPersistence } from '@config/global/sessionConfig';
 import { getAppKey } from '@/config/global';
-import { handleError } from '@utils/errors';
 import { getEndpointsConfig } from '@config/global/endpointsConfig';
 import { refreshTokens } from '@/services';
 import { createAxiosFetcher } from '@/fetchers/axios';
@@ -20,6 +19,7 @@ declare module 'axios' {
     _retry?: boolean;
   }
 }
+
 
 export class AxiosService {
   private readonly instance: AxiosInstance;
@@ -96,10 +96,7 @@ export class AxiosService {
         this.activeRequests++;
         return config;
       },
-      (error: AxiosError) => {
-        handleError(error);
-        return Promise.reject(error);
-      }
+      (error: AxiosError) => Promise.reject(error)
     );
 
     // ── Response: handle 401 with token refresh ──────────────────────────
@@ -122,7 +119,6 @@ export class AxiosService {
         const isRetry       = originalRequest?._retry === true;
 
         if (!isAuthError || isRefreshCall || isRetry || !originalRequest) {
-          handleError(error);
           return Promise.reject(error);
         }
 
@@ -161,7 +157,6 @@ export class AxiosService {
         } catch (refreshError) {
           this.processQueue(refreshError as AxiosError, null);
           this.isRefreshing = false;
-          handleError(refreshError);
           return Promise.reject(error);
         }
       }

@@ -1,3 +1,87 @@
+# Unreleased — v6.0.0 (lean rewrite)
+
+**Identity change.** The package is now scoped to **REST + Auth for Vue 3 apps**.
+Everything that duplicated `@vueuse/core`, `date-fns`, `zod`, `lodash`, `change-case`, `@tanstack/vue-query`, or belonged to unrelated toolkits (exports/downloads, DOM helpers, breakpoints, monitoring) has been removed.
+
+### ⚠️ Breaking — removed (no `@deprecated`, no alias)
+
+Composables:
+- `useFetch`, `usePagination`, `useSorter`, `useFilter`, `useBreakpoint`, `useApiActivity`, `useUserInactivity`.
+
+Utils:
+- `debounces.*`, `dates.*`, `strings.*`, `validations.*`, `io.*`, `browser.*`, `exports.*`, `files.*`, `handleError`.
+- From `objects.ts`: `deepEqual`, `deepClone`, `deepMerge`, `flattenObject`, `removeEmptyProperties`, `compareObject`, `filterObjectByKeys`, `getObjectDifferences`, `isEmptyObject`, `objectToQueryString`, `getObjectKeys`, `hasNestedProperties`, `proxyToPlainObject`, `objectToFormDataEnhanced`. Only `safeGet` and `objectToFormData` survive.
+
+Enums:
+- `KeyCodeEnum`, `ScreenSize`, `ScreenBreakpoint`, `StorageKeyEnum`, `ErrorEnum`, image/audio/video/file/font type enums, `ExceptionEnum` (HTTP status codes). Only `ContentTypeEnum` survives.
+
+Types:
+- `ErrorType`, `ExtendedQueryOptions`, `AxiosOptionsParameter`, `DecodedJwtPayload`, `AuthConfig`.
+- `options?: Record<string, unknown>` removed from all `RestStdOptions.*` shapes (was unused).
+
+Folder `monitoring/` deleted (was never exported).
+
+### ⚠️ Breaking — `RestStd`
+
+- **`static isFormData` removed.** Serialization is now driven by the runtime shape of `data`:
+  `FormData` / `Blob` / `ArrayBuffer` → sent as-is with no `Content-Type` (client emits the correct multipart `boundary`); everything else → `application/json`. Convert plain objects with `objectToFormData()` when you need multipart.
+- **`transformData()` removed.** Internal helper superseded by `prepareWrite()`.
+- Body+headers logic centralised in a single private helper — the 6 write methods no longer duplicate it.
+
+### ⚠️ Breaking — errors
+
+- `normalizeHttpError` now returns the **actual typed hierarchy** instead of always `NetworkError`:
+  - 401 / 403 → `AuthError`
+  - 422 → `ValidationError` (with `issues[]` extracted heuristically from Spring / NestJS / JSON:API / Laravel shapes)
+  - 5xx → `ServerError`
+  - other HTTP → `NetworkError`
+- `AuthError`, `ValidationError`, `ServerError` static factory methods (`.unauthorized()`, `.fromIssues()`, `.internal()`, …) are now used by real code — they were dead exports until now.
+
+### ✨ New — `refreshTokenBodyKey`
+
+Optional plugin option that controls the body key used when POSTing to the refresh endpoint. Default `'refresh_token'`. Set to `'refreshToken'` for Spring / NestJS backends.
+
+Fixes the v5.x bug where `refreshTokenPaths.refreshTokenPath` was reused as a body key, breaking silently when the path was nested (`data.refresh_token` → literal `{ "data.refresh_token": … }`).
+
+### 🐛 Fixes
+
+- `useAuth().login()` no longer wraps the call in a redundant `try { … } throw error`.
+- `useAuth().logout()` swallows network errors intentionally (logout MUST proceed locally) — no more automatic `console.error`.
+- All internal `handleError()` side-effects removed; the library no longer imposes `console.error` on the consumer.
+- `credentials.ts` unused import cleaned.
+- `ofetch.ts` uses `@ts-expect-error` instead of `@ts-ignore`.
+- Wider TypeScript hardening: `Record<string, any>` → `Record<string, unknown>`, `any` → typed shapes across errors, fetchers, normalize, extract, objects. ESLint clean (0 errors).
+
+### 📦 Package
+
+- Dropped `@vueuse/core` and `@tanstack/vue-query` peer dependencies (no code depends on them).
+- Removed the CJS lie: `main` now points to `dist/index.mjs` (ESM-only, as it always was on disk).
+- Added `"sideEffects": false` so bundlers can tree-shake aggressively.
+- Rollup externals trimmed accordingly.
+
+### Migration guide (v5 → v6)
+
+| If you used… | Replace with |
+|---|---|
+| `useDebounce*` / `throttle` | `@vueuse/core` `useDebounceFn` / `useThrottleFn` |
+| `useFilter` / `useSorter` / `usePagination` | `@tanstack/vue-query` + your own selector, or `@vueuse/core` primitives |
+| `useBreakpoint` | `@vueuse/core` `useBreakpoints` |
+| `useApiActivity` / `useUserInactivity` | `@vueuse/core` `useIdle`, `useDocumentVisibility` |
+| `useFetch` | `@tanstack/vue-query` directly |
+| `formatDate` / `parseDate` / `daysBetween` / … | `date-fns` or `dayjs` |
+| `toCamelCase` / `toKebabCase` / … | `change-case` |
+| `isValidEmail` / `isStrongPassword` / … | `zod` / `valibot` |
+| `disableRightClick` / `clickOutside` | `@vueuse/core` `onClickOutside` |
+| `openWindow` / `copyToClipboard` | `window.open` / `@vueuse/core` `useClipboard` |
+| `exportToCSV` / `exportToExcel` | `file-saver` + `xlsx` |
+| `readFileAsText` | Native `FileReader` |
+| `handleError` | Just `console.error` (or nothing) |
+| `deepEqual` / `deepClone` / `deepMerge` | `lodash-es` |
+| `static isFormData = true` | Pass `objectToFormData(data)` or a `FormData` at the call site |
+| `NetworkError` for 401/422/5xx | `AuthError` / `ValidationError` / `ServerError` (real `instanceof`) |
+
+---
+
 # [5.1.0](https://github.com/Arex95/npm-arex-core/compare/v5.0.0...v5.1.0) (2026-03-09)
 
 

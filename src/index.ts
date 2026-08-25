@@ -7,32 +7,24 @@ import {
   configAppKey,
   configTokenPaths,
   configRefreshTokenPaths,
+  configRefreshTokenBodyKey,
   configCallbacks,
 } from "./config";
 
 /**
- * A Vue plugin that serves as the entry point for the `@arex95/vue-core` library.
- * It initializes and configures all the core modules, such as authentication, API communication,
- * and token management, based on the provided options.
+ * Vue plugin entry point for `@arex95/vue-core`.
+ *
+ * Initializes the global configuration singletons in a deterministic order:
+ * appKey → tokenKeys → endpoints → tokenPaths → refreshTokenPaths →
+ * refreshTokenBodyKey → axios → callbacks.
  */
 export const ArexVueCore = {
-  /**
-   * The `install` method required by Vue's plugin system. It is called when `app.use()` is invoked.
-   *
-   * @param {App} app - The Vue application instance.
-   * @param {ArexVueCoreOptions} options - The configuration object for the library.
-   */
-  install: (app: App, options: ArexVueCoreOptions) => {
+  install: (_app: App, options: ArexVueCoreOptions) => {
     if (!options) {
-      console.warn(
-        "ArexVueCore: No configuration options were provided. The library may not function correctly."
-      );
-      return;
-    };
+      throw new Error('[arex-core] No configuration options provided to ArexVueCore.install().');
+    }
 
-    configAppKey({
-      appKey: options.appKey
-    });
+    configAppKey({ appKey: options.appKey });
     configTokenKeys({
       accessTokenKey: options.tokenKeys.accessToken,
       refreshTokenKey: options.tokenKeys.refreshToken,
@@ -50,6 +42,7 @@ export const ArexVueCore = {
       accessTokenPath: options.refreshTokenPaths.accessToken,
       refreshTokenPath: options.refreshTokenPaths.refreshToken,
     });
+    configRefreshTokenBodyKey(options.refreshTokenBodyKey);
     configAxios({
       baseURL: options.axios.baseURL,
       headers: options.axios.headers,
@@ -64,6 +57,7 @@ export const ArexVueCore = {
   },
 };
 
+// Public API surface — REST + Auth foundation only.
 export * from "./rest";
 export * from "./composables";
 export * from "./config";
