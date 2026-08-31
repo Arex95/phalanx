@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitepress';
+import { arexDark, arexLight } from './theme/code';
 
 export default defineConfig({
     title: 'Phalanx',
@@ -11,7 +12,19 @@ export default defineConfig({
     // domain serves it from the root — otherwise every asset resolves to a 404.
     base: process.env.DOCS_BASE ?? '/phalanx/',
 
+    head: [['link', { rel: 'icon', type: 'image/svg+xml', href: (process.env.DOCS_BASE ?? '/phalanx/') + 'favicon.svg' }]],
+
+    // The default GitHub themes bring seven hues of their own, one of them a
+    // second orange that competes with the brand accent. See theme/code.ts.
+    markdown: {
+        theme: { light: arexLight, dark: arexDark }
+    },
+
     themeConfig: {
+        // Two files rather than one adaptable SVG: VitePress renders the logo in
+        // an <img>, where currentColor has nothing to inherit from.
+        logo: { light: '/mark-light.svg', dark: '/mark-dark.svg', alt: 'Arex Forge' },
+
         nav: [
             { text: 'Guide', link: '/guide/getting-started' },
             { text: 'Concepts', link: '/concepts/why-phalanx' },
