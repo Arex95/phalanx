@@ -1,11 +1,11 @@
-# @arex95/vue-core
+# @arex95/phalanx
 
 **REST + Auth foundation for Vue 3 apps.**
 
 A base class for your REST resources. Automatic JWT refresh on 401. Encrypted token storage. A typed error hierarchy you can actually branch on. Nothing else.
 
 ```sh
-pnpm add @arex95/vue-core
+pnpm add @arex95/phalanx
 ```
 
 ---
@@ -14,7 +14,7 @@ pnpm add @arex95/vue-core
 
 Every Vue app repeats the same wiring: an axios instance with a Bearer interceptor, a queue that pauses requests while a refresh is in flight, encrypted tokens in `localStorage`, and a class that turns `/users`, `/products`, `/orders` into consistent CRUD calls.
 
-`@arex95/vue-core` is that wiring — nothing more:
+`@arex95/phalanx` is that wiring — nothing more:
 
 - **`RestStd`** — extend, override `resource`, get `getAll` / `getOne` / `create` / `update` / `patch` / `delete` / `bulk*` / `upsert` / `customRequest`.
 - **Single-flight refresh** — a 401 pauses concurrent requests, refreshes once, retries the queue transparently.
@@ -32,9 +32,9 @@ What we deliberately do **not** ship: debounces, breakpoints, string helpers, da
 ```typescript
 // main.ts
 import { createApp } from 'vue';
-import { ArexVueCore } from '@arex95/vue-core';
+import { Phalanx } from '@arex95/phalanx';
 
-app.use(ArexVueCore, {
+app.use(Phalanx, {
   appKey: import.meta.env.VITE_APP_KEY, // encrypts tokens at rest
 
   endpoints: {
@@ -80,7 +80,7 @@ app.use(ArexVueCore, {
 Extend and go:
 
 ```typescript
-import { RestStd } from '@arex95/vue-core';
+import { RestStd } from '@arex95/phalanx';
 
 export class ProductService extends RestStd {
   static override resource = 'catalog/products';
@@ -114,7 +114,7 @@ export class CheckoutService extends RestStd {
 Pass a `FormData` (or a `Blob` / `ArrayBuffer`) and the library sends it as multipart, letting the underlying client add the correct boundary. For plain objects, convert with the exported helper:
 
 ```typescript
-import { objectToFormData } from '@arex95/vue-core';
+import { objectToFormData } from '@arex95/phalanx';
 
 await ProductService.create({
   data: objectToFormData({ name, image: file, tags: ['a', 'b'] }),
@@ -137,7 +137,7 @@ Retries kick in on 5xx, 408, 429, and network errors — configurable via `retry
 ## Authentication
 
 ```typescript
-import { useAuth, verifyAuth, cleanCredentials } from '@arex95/vue-core';
+import { useAuth, verifyAuth, cleanCredentials } from '@arex95/phalanx';
 
 const { login, logout } = useAuth();
 
@@ -170,7 +170,7 @@ Concurrent requests that hit 401 while a refresh is in flight are queued and rel
 The library normalizes every HTTP error into a discriminable class before it reaches your `catch`:
 
 ```typescript
-import { AuthError, ValidationError, ServerError, NetworkError } from '@arex95/vue-core';
+import { AuthError, ValidationError, ServerError, NetworkError } from '@arex95/phalanx';
 
 try {
   await ProductService.create({ data });
@@ -205,7 +205,7 @@ Original payload is always preserved in `error.context.responseData`.
 This library ships one built-in fetcher, `createAxiosFetcher` — but the real extension point is the `Fetcher` contract: any function matching `(config: FetcherConfig) => Promise<unknown>` works, wired per-service or as the default auth fetcher.
 
 ```typescript
-import { configAuthFetcher, type Fetcher } from '@arex95/vue-core';
+import { configAuthFetcher, type Fetcher } from '@arex95/phalanx';
 import { $fetch } from 'ofetch';
 
 const ofetchFetcher: Fetcher = (config) =>
@@ -240,12 +240,12 @@ Tokens are encrypted with AES-CBC-256 (Web Crypto) before hitting any location. 
 ## Nuxt / SSR
 
 ```typescript
-// plugins/arex-core.ts
+// plugins/phalanx.ts
 export default defineNuxtPlugin({
   enforce: 'pre',
   setup(nuxt) {
     const config = useRuntimeConfig();
-    nuxt.vueApp.use(ArexVueCore, {
+    nuxt.vueApp.use(Phalanx, {
       appKey: config.public.appKey,
       // ...
       axios: {

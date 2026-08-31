@@ -11,7 +11,7 @@ import { normalizeHttpError } from '@/errors';
  * @example
  * ```typescript
  * import axios from 'axios';
- * import { createAxiosFetcher, RestStd } from '@arex95/vue-core';
+ * import { createAxiosFetcher, RestStd } from '@arex95/phalanx';
  * 
  * const axiosInstance = axios.create({ baseURL: 'https://api.example.com' });
  * 

@@ -69,7 +69,7 @@ export function getCookieStorage(): CookieStorage {
 
       if (options?.httpOnly) {
         throw new Error(
-          '[arex-core] HttpOnly cookies cannot be set from JavaScript. ' +
+          '[phalanx] HttpOnly cookies cannot be set from JavaScript. ' +
           'Use server-side code (e.g. h3 setCookie) to set HttpOnly cookies.'
         );
       }

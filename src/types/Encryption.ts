@@ -16,7 +16,7 @@ export interface EncryptedField {
  * The RSA public key `encryptField` encrypts against — see
  * `config/global/encryptionConfig.ts` for why shipping it in the bundle is
  * safe. Lives in `types/` (not local to that config file, unlike e.g.
- * `TokenPathsConfig`) because `ArexVueCoreOptions` also needs it.
+ * `TokenPathsConfig`) because `PhalanxOptions` also needs it.
  */
 export interface EncryptionConfig {
   publicKeyPem: string;

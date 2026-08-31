@@ -18,7 +18,7 @@ export function getWebCrypto(): Crypto {
 
   if (!c?.subtle) {
     throw new Error(
-      '[arex-core] Web Crypto API (crypto.subtle) is not available. ' +
+      '[phalanx] Web Crypto API (crypto.subtle) is not available. ' +
       'Requires Node.js 15+, a modern browser, or a runtime that exposes globalThis.crypto.subtle.'
     );
   }

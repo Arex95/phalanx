@@ -2,7 +2,7 @@ export * from './domain';
 export * from './EndpointsConfig';
 export * from './Auth';
 export * from './SessionConfig';
-export * from './ArexVueCoreOptions';
+export * from './PhalanxOptions';
 export * from './AxiosServiceOptions';
 export * from './Fetcher';
 export * from './RestStdOptions';

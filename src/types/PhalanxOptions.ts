@@ -3,15 +3,15 @@ import { CsrfConfig } from "./Csrf";
 import { EncryptionConfig } from "./Encryption";
 
 /**
- * Configuration object for initializing the `@arex95/vue-core` plugin.
- * Passed as the second argument to `app.use(ArexVueCore, options)`.
+ * Configuration object for initializing the `@arex95/phalanx` plugin.
+ * Passed as the second argument to `app.use(Phalanx, options)`.
  *
  * No `appKey` and no `tokenKeys`: the access token lives in memory only and
  * the refresh token lives in an `HttpOnly` cookie the backend manages —
  * there is nothing left for this library to encrypt or address by storage
  * key. Set `axios.withCredentials: true` so that cookie is actually sent.
  */
-export interface ArexVueCoreOptions {
+export interface PhalanxOptions {
   /** Authentication API endpoints. */
   endpoints: {
     login: string;

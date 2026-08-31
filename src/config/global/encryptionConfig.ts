@@ -19,7 +19,7 @@ export function configEncryption(config: EncryptionConfig): void {
 export function getEncryptionPublicKeyPem(): string {
   if (publicKeyPem === null) {
     throw new Error(
-      "[arex-core] No encryption public key configured. Call configEncryption({ publicKeyPem }) before using encryptField()."
+      "[phalanx] No encryption public key configured. Call configEncryption({ publicKeyPem }) before using encryptField()."
     );
   }
   return publicKeyPem;

@@ -24,9 +24,9 @@ There are no tests in this project. There is no dev server — this is a library
 
 ## Architecture
 
-This is `@arex95/vue-core`, an opinionated Vue 3 library published to npm. It is installed as a Vue plugin and configured once at startup via `app.use(ArexVueCore, options)`.
+This is `@arex95/phalanx`, an opinionated Vue 3 library published to npm. It is installed as a Vue plugin and configured once at startup via `app.use(Phalanx, options)`.
 
-**Entry point:** `src/index.ts` — exports everything and defines the `ArexVueCore` plugin object.
+**Entry point:** `src/index.ts` — exports everything and defines the `Phalanx` plugin object.
 
 **Build:** Rollup with `@rollup/plugin-typescript`. Output is ESM only (`dist/index.mjs`). All peer dependencies (`vue`, `axios`, `@vueuse/core`, `jwt-decode`, `uuid`) are marked external. No `ofetch` — the library's only fetcher extension point is the `Fetcher` contract (`types/Fetcher.ts`); a consumer wiring `ofetch`/Apollo/anything else writes that adapter in their own project.
 
@@ -71,7 +71,7 @@ src/
 
 **Token paths (dot notation):** Tokens are extracted from auth responses using dot-notation paths (e.g. `"data.token.access"`), configured via `tokenPaths` and `refreshTokenPaths` in the plugin options.
 
-### Plugin initialization options (`ArexVueCoreOptions`)
+### Plugin initialization options (`PhalanxOptions`)
 
 - `appKey` — encryption key for credential storage
 - `endpoints.login / refresh / logout` — auth API endpoints

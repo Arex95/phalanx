@@ -11,7 +11,7 @@ let createDefaultFetcher: (() => Fetcher) | null = null;
  * 
  * @example
  * ```typescript
- * import { configAuthFetcher, type Fetcher } from '@arex95/vue-core';
+ * import { configAuthFetcher, type Fetcher } from '@arex95/phalanx';
  * import { $fetch } from 'ofetch';
  *
  * const ofetchFetcher: Fetcher = (config) =>

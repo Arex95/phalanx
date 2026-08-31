@@ -1,5 +1,5 @@
 import { App } from "vue";
-import { ArexVueCoreOptions } from "./types/ArexVueCoreOptions";
+import { PhalanxOptions } from "./types/PhalanxOptions";
 import {
   configEndpoints,
   configAxios,
@@ -11,17 +11,17 @@ import {
 } from "./config";
 
 /**
- * Vue plugin entry point for `@arex95/vue-core`.
+ * Vue plugin entry point for `@arex95/phalanx`.
  *
  * Initializes the global configuration singletons in a deterministic order:
  * endpoints → tokenPaths → refreshTokenPaths → csrf → encryption → axios →
  * callbacks. No `appKey`/`tokenKeys` step anymore — nothing about tokens is
  * stored client-side (see `services/accessToken.ts`).
  */
-export const ArexVueCore = {
-  install: (_app: App, options: ArexVueCoreOptions) => {
+export const Phalanx = {
+  install: (_app: App, options: PhalanxOptions) => {
     if (!options) {
-      throw new Error('[arex-core] No configuration options provided to ArexVueCore.install().');
+      throw new Error('[phalanx] No configuration options provided to Phalanx.install().');
     }
 
     configEndpoints({

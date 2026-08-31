@@ -83,7 +83,7 @@ export const defaultRequestConfirmation: NonNullable<ActionInjection['requestCon
  */
 export class ActionCancelledError extends Error {
     constructor() {
-        super('[arex-core] Action cancelled: confirmation was not accepted.');
+        super('[phalanx] Action cancelled: confirmation was not accepted.');
         this.name = 'ActionCancelledError';
     }
 }
