@@ -1,7 +1,7 @@
 # Services
 
-A service is a class extending `RestStd`. It is static by design: there is
-nothing to instantiate, and no state to keep.
+A service is a class extending `RestStd`. Members are static: there is nothing
+to instantiate and no per-instance state.
 
 ```ts
 import { RestStd } from '@arex95/phalanx';
@@ -34,9 +34,8 @@ rather than issuing a request to `undefined`.
 does not prefix it with `resource`. Build the path yourself, as the examples
 below do.
 
-All of them are `async` and return a `Promise`. That is worth stating because
-it was once not true: a validation failure used to throw synchronously, so
-`await service.create(...)` inside a `try` block escaped the `catch`.
+All of them are `async`. Errors — including argument validation — arrive as a
+rejected promise, so a single `try`/`catch` around an `await` covers them.
 
 ### `upsert`
 

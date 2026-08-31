@@ -1,73 +1,55 @@
 # Why Phalanx
 
-## The name
+Vue has no opinionated answer for the data layer of an admin panel. Most
+projects assemble one: an axios instance with a bearer interceptor, a queue that
+holds requests during a token refresh, a class per resource, and — in every view
+that does something other than CRUD — a permission check, a confirmation dialog,
+a toast and a list of cache keys to invalidate.
 
-A phalanx is not stronger equipment. It is the same soldier, placed
-differently. The formation wins because **nobody chooses their own position** —
-and it dies from one gap in the line.
+Phalanx is that assembly, done once.
 
-That is the argument for an opinionated foundation, and also its warning label.
+```ts
+class UserService extends RestStd {
+    static resource = 'users';
 
-## What it is
+    static suspend = defineAction(
+        (id: string) => this.customRequest({ method: 'POST', url: `users/${id}/suspend` }),
+        { permission: 'users.suspend', requiresConfirmation: true, invalidate: ['users'] }
+    );
+}
 
-Phalanx decides three things for you:
+const keys = { all: 'users', one: 'user' };
+export const userQueries = createDomainQueries({ service: UserService, keys });
+export const userMutations = createDomainMutations({ service: UserService, keys });
+```
 
-1. **How the app talks to a REST API** — one service class per resource, with
-   the CRUD surface inherited and the rest declared on it.
-2. **How it authenticates** — access token in memory, refresh in an `HttpOnly`
-   cookie, one refresh in flight, requests queued behind it.
-3. **How non-CRUD operations behave** — permission, confirmation, notification
-   and cache invalidation declared as data, next to the operation.
+`userMutations.suspend` is a TanStack mutation with an `isAuthorized` computed,
+a confirmation step, and its own invalidation — typed from the service method.
 
-Everything else is yours: components, styling, routing, state, forms.
+## What it decides
 
-## The gap it exists to close
+- **Transport.** One class per resource, eleven inherited methods, typed errors
+  out of every call.
+- **Session.** Access token in memory, refresh in an `HttpOnly` cookie, one
+  refresh in flight with the rest queued behind it.
+- **Non-CRUD operations.** Permission, confirmation, notification and
+  invalidation declared next to the operation instead of in the view.
 
-Admin tooling is generous with CRUD. Generate a resource, get a list, a form,
-a detail page. That is the comfortable 80%.
+## What it leaves alone
 
-The other 20% is where a real panel lives: suspend an account, approve a
-refund, close an accounting period, export a range. Each carries the same four
-questions, and most stacks answer none of them:
+No components, no styles, no router integration, no form library, no state
+management beyond TanStack Query. The transport is a one-function contract, so
+axios is replaceable.
 
-- Is this user allowed to do it?
-- Should we ask before doing it?
-- What do we tell them when it finishes, or fails?
-- What is now stale in the cache?
+## Tradeoffs
 
-Answered by hand in every view, those answers drift. One screen forgets the
-permission check. Another asks for confirmation on a harmless action and not on
-a destructive one. A third leaves a stale list on screen. None of it shows up
-in a code review, because each view looks reasonable on its own.
-
-`defineAction` moves all four next to the operation, once, where they are hard
-to forget and impossible to contradict.
-
-## What it refuses to do
-
-- **It ships no components.** A foundation that also owns your buttons is a
-  framework you cannot leave.
-- **It does not lock you to a transport.** Axios is the default, not a
-  requirement; any function matching the `Fetcher` contract works.
-- **It does not pretend a browser can keep a secret.** See
-  [The auth model](/concepts/auth-model).
-- **It does not encrypt tokens client-side.** Encryption with a key that ships
-  in the same bundle is encoding.
-
-## What it costs
-
-Opinions are only worth having if you say what they cost.
-
-- **TanStack Query is a peer dependency, not a suggestion.** Queries and
-  mutations are its objects. If you use another cache, you use the services
-  directly and skip that layer.
-- **Services are static classes.** No dependency injection, no instances. That
-  is deliberate — there is no per-instance state to be wrong about — but it is
-  not fashionable, and it is not mockable by construction. Override `fetchFn`
-  instead.
-- **A custom mutation takes at most one argument.** The type inference that
-  makes custom methods appear on the mutations, correctly typed, cannot express
-  more. Pass an object.
-- **Config lives in module singletons.** One configuration per process. That is
-  fine in a browser and wrong in SSR request handling — do not drive them from
-  a request handler.
+- **TanStack Query is a peer dependency.** The queries and mutations are its
+  objects. With another cache, use the services directly and skip that layer.
+- **Services are static classes.** No instances, no dependency injection. Swap
+  `fetchFn` to substitute the transport in tests.
+- **A custom mutation takes at most one argument.** More than one cannot be
+  expressed in the inferred signature. Pass an object.
+- **Configuration is a module singleton.** One configuration per process, which
+  suits a browser and rules out driving it from SSR request handling.
+- **Session handling assumes the SPA calls the API directly.** Behind a
+  backend-for-frontend, the BFF holds the tokens and this layer is redundant.

@@ -26,8 +26,7 @@ The three authentication routes, relative to the axios `baseURL`.
 ### `tokenPaths` and `refreshTokenPaths`
 
 Dot-notation paths to the access token inside each response body. They are
-separate on purpose: login and refresh responses often differ in shape, and a
-single path forces the backend to keep them identical forever.
+separate because login and refresh responses often differ in shape.
 
 ```ts
 tokenPaths: { accessToken: 'data.access_token' },   // POST /auth/login
@@ -77,10 +76,9 @@ you want to drive auth yourself.
 
 ### `onRefreshFailed` and `onLogout`
 
-Called when the session ends — refresh rejected, or logout completed. **If you
-do not provide them, Phalanx calls `window.location.reload()`**, which is a
-blunt default that works everywhere and destroys any unsaved state. In a real
-app, provide them:
+Called when the session ends — a rejected refresh, or a completed logout. The
+default is `window.location.reload()`, which discards unsaved state. Provide
+them to route instead:
 
 ```ts
 onRefreshFailed: () => router.push({ name: 'login' }),
@@ -102,6 +100,5 @@ and the difference matters:
 | `getCsrfConfig()` | returns `null` — no CSRF header is sent |
 | `getEncryptionPublicKeyPem()` | **throws** |
 
-Only encryption fails loudly. If you forget to install the plugin, auth calls
-will quietly go to `/login` against the axios `baseURL` and you will be reading
-a 404 wondering why. Install the plugin before anything issues a request.
+Install the plugin before anything issues a request. Without it, auth calls go
+to the default paths against the axios `baseURL`.

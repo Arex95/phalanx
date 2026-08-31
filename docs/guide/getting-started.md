@@ -52,7 +52,7 @@ createApp(App)
 `withCredentials: true` is not optional if your API lives on another origin.
 Without it the browser will not send the refresh cookie, and it will not tell
 you why — the request simply arrives unauthenticated. See
-[Backend contract](/concepts/backend-contract).
+[Server requirements](/concepts/server-requirements).
 
 ## Declare a service
 
@@ -103,4 +103,4 @@ const { mutate: create } = userMutations.create;
 
 - [Configuration](/guide/configuration) — every option the plugin takes.
 - [Actions](/guide/actions) — permissions, confirmation and invalidation as data.
-- [Backend contract](/concepts/backend-contract) — what the API must do for auth to work.
+- [Server requirements](/concepts/server-requirements) — what the API must do for auth to work.

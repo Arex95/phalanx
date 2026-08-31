@@ -83,7 +83,7 @@ so error codes carried in a header survive normalisation.
 ::: warning
 `storeEncryptedItem` and `getDecryptedItem` are **not** for session tokens. A
 key the browser can use is a key an attacker in the page can use. See
-[The auth model](/concepts/auth-model).
+[Session handling](/concepts/session).
 :::
 
 ## Utilities

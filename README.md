@@ -1,14 +1,14 @@
 # Phalanx
 
-**Opinionated REST + Auth foundation for Vue 3 admin panels.**
+**REST and auth foundation for Vue 3 admin panels.**
 
-Declare a resource once. The service, its TanStack queries and mutations, its
-permissions, its confirmations and its cache invalidation all derive from that
-one declaration.
+Declare a resource once and get its service, TanStack queries and mutations, and
+custom actions — with session handling, typed errors and cache invalidation
+already wired.
 
 📖 **[Documentation](https://github.com/Arex95/phalanx/tree/main/docs)** ·
 [Why Phalanx](docs/concepts/why-phalanx.md) ·
-[Backend contract](docs/concepts/backend-contract.md)
+[Server requirements](docs/concepts/server-requirements.md)
 
 ---
 
@@ -16,14 +16,13 @@ one declaration.
 
 - **A REST base class.** `RestStd` gives every resource the same eleven
   methods, plus whatever custom operations you declare on it.
-- **Auth that does not pretend.** The access token lives in memory and is never
-  persisted; the refresh token rides in an `HttpOnly` cookie the library cannot
-  read. One refresh in flight, parallel 401s queued behind it.
-- **The 20% that is not CRUD.** Permission, confirmation, notification and
-  invalidation declared as data next to the operation, instead of rebuilt by
-  hand in every view.
-- **Typed all the way down.** A service's custom methods appear on its queries
-  and mutations with their real argument and return types, inferred.
+- **Session handling.** Access token in memory, refresh token in an `HttpOnly`
+  cookie, one refresh in flight with concurrent 401s queued behind it.
+- **Beyond CRUD.** Custom operations carry their permission, confirmation,
+  notification and cache invalidation as metadata, so a view calls one mutation
+  instead of wiring four concerns.
+- **Inferred types.** Custom service methods appear on the generated queries and
+  mutations with their own argument and return types.
 
 It ships **no components and no styles**. What the screen looks like stays
 yours.
@@ -73,20 +72,17 @@ export const userMutations = createDomainMutations({ service: UserService, keys 
 `suspend` is now a mutation with `isAuthorized`, a confirmation step and its own
 invalidation — typed from the service method, not declared twice.
 
-## This needs something from your backend
+## Server side
 
-The refresh cookie can only be set by a server, so half the auth model lives in
-your API:
+The refresh cookie is set by your API:
 
 ```http
 Set-Cookie: refresh_token=…; HttpOnly; Secure; SameSite=None; Path=/auth/refresh
 ```
 
-The refresh token must **not** also be returned in the JSON body, and
-cross-origin setups need `Access-Control-Allow-Credentials: true` with an
-explicit origin — `*` is rejected by browsers when credentials are involved,
-and it fails silently. The full list is in
-[Backend contract](docs/concepts/backend-contract.md).
+Cross-origin setups also need `Access-Control-Allow-Credentials: true` with an
+explicit origin. Full list, including the attributes and the symptoms when one
+is wrong: [Server requirements](docs/concepts/server-requirements.md).
 
 ## Requirements
 
@@ -119,15 +115,14 @@ v6 is a breaking rewrite, and the package changed name.
 
 | Removed | Replacement |
 |---|---|
-| `appKey`, `configKey` | nothing — a key shipped in the bundle protects nothing |
+| `appKey`, `configKey` | removed — tokens are no longer stored client-side |
 | `tokenKeys`, `configTokens`, `storeTokens` | the token lives in memory; read `accessToken` |
-| token storage modes (`local`, `session`, `cookie`) | the refresh token is an `HttpOnly` cookie set by the backend |
+| token storage modes (`local`, `session`, `cookie`) | access token in memory, refresh token in a server-set cookie |
 | `refreshTokenBodyKey` | the refresh request has no body |
 | `createOfetchFetcher` | any function matching the `Fetcher` contract |
 | `ArexVueCore`, `ArexVueCoreOptions` | `Phalanx`, `PhalanxOptions` |
 
-Why the old storage design was unsound is written up in
-[The auth model](docs/concepts/auth-model.md).
+The model is described in [Session handling](docs/concepts/session.md).
 
 ## License
 

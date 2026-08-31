@@ -4,7 +4,7 @@ The access token lives in memory. The refresh token lives in a cookie the
 library cannot read. Nothing about the session is written to `localStorage`,
 `sessionStorage`, or a cookie set from JavaScript.
 
-For why, see [The auth model](/concepts/auth-model). This page is how to use it.
+For why, see [Session handling](/concepts/session). This page is how to use it.
 
 ## Logging in
 
@@ -68,10 +68,8 @@ request, not ten.
 await logout();
 ```
 
-The backend call is made, and **its outcome is ignored on purpose**: the local
-session is cleared whether the server answered, errored, or timed out. A user
-who clicks "log out" on a broken network is still logged out locally. Then
-`onLogout` fires, or the page reloads.
+The local session is cleared whether the request succeeds, fails or times out,
+then `onLogout` fires. Logging out is not blocked by a network error.
 
 ## CSRF
 
@@ -83,9 +81,8 @@ readable CSRF cookie and mirrored into the request:
 csrf: { headerName: 'X-XSRF-TOKEN', cookieName: 'XSRF-TOKEN' }
 ```
 
-Requests authenticated by a bearer header are not vulnerable to CSRF — the
-browser does not attach that header on a cross-site request — so they are left
-alone.
+Requests carrying a bearer header do not need it: a cross-site page cannot set
+that header.
 
 ## Driving auth yourself
 

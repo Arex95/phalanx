@@ -5,12 +5,10 @@ read it. It is for outbound user data — a document number, a medical note, a
 bank reference — that should not be readable in transit logs, proxies or a
 database dump.
 
-::: warning A different problem from tokens
-This works for the exact reason client-side token encryption does not. Outbound
-data is **never read back** by the client, so the client only needs the public
-half of the key. A token has to be decrypted by the code that stores it, which
-means the key is in the bundle — and then it protects nothing. See
-[The auth model](/concepts/auth-model).
+::: tip
+The client only ever holds the public key, because it never needs to read the
+value back. This is not a substitute for storing credentials — see
+[Session handling](/concepts/session).
 :::
 
 ## Configure the public key
@@ -70,7 +68,7 @@ standard library.
 - **A compromised frontend.** Script running in your page can read the value
   before it is encrypted. This protects data *in transit and at rest*, not from
   XSS.
-- **The backend itself.** It holds the private key by design.
+- **The backend.** It holds the private key.
 - **Traffic analysis.** Sizes and timing are unchanged.
 
 It is not a substitute for TLS. It is a second envelope inside it, so that the

@@ -106,11 +106,8 @@ invalidation still run.
 
 ## When the user declines
 
-`mutate` and `mutateAsync` behave differently on purpose:
-
-- `mutate` returns `void`, so a declined confirmation simply does nothing.
-- `mutateAsync` returns a Promise, so it **rejects with
-  `ActionCancelledError`**.
+- `mutate` returns `void` and does nothing.
+- `mutateAsync` rejects with `ActionCancelledError`, so the `await` settles.
 
 ```ts
 import { ActionCancelledError } from '@arex95/phalanx';
@@ -122,9 +119,6 @@ try {
     throw e;
 }
 ```
-
-A declined `mutateAsync` that neither resolved nor rejected would hang the
-`await` forever. That is why it rejects rather than staying silent.
 
 ## CRUD operations get this too
 

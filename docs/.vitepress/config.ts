@@ -42,8 +42,8 @@ export default defineConfig({
                 text: 'Concepts',
                 items: [
                     { text: 'Why Phalanx', link: '/concepts/why-phalanx' },
-                    { text: 'The auth model', link: '/concepts/auth-model' },
-                    { text: 'Backend contract', link: '/concepts/backend-contract' }
+                    { text: 'Session handling', link: '/concepts/session' },
+                    { text: 'Server requirements', link: '/concepts/server-requirements' }
                 ]
             },
             {
