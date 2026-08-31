@@ -1,81 +1,106 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working in this repository.
 
 ## Commands
 
 ```bash
-# Install dependencies
 pnpm install
-
-# Build the library (outputs to dist/)
-pnpm build
-
-# Lint
-pnpm eslint src/
-
-# Release (patch/minor/major)
-pnpm release
-pnpm release:minor
-pnpm release:major
+pnpm test            # 322 tests, vitest + happy-dom
+pnpm typecheck       # vue-tsc --noEmit, source only
+pnpm typecheck:test  # tsc -p tsconfig.test.json, the tests
+pnpm lint            # eslint . — the whole repo, not just src/
+pnpm build           # rollup + scripts/fix-dts-aliases.mjs
+pnpm -C docs dev     # documentation site
 ```
 
-There are no tests in this project. There is no dev server — this is a library built with Rollup.
+`prepublishOnly` chains typecheck, typecheck:test, lint, test and build. A red
+gate blocks `npm publish`. Do not weaken it.
 
-## Architecture
+There is no dev server — this is a library. To exercise it against a real app,
+link it into a consumer with `yalc` (not `pnpm link`: Vite's dependency
+pre-bundling skips symlinks and you end up with two Vue instances).
 
-This is `@arex95/phalanx`, an opinionated Vue 3 library published to npm. It is installed as a Vue plugin and configured once at startup via `app.use(Phalanx, options)`.
+## What this is
 
-**Entry point:** `src/index.ts` — exports everything and defines the `Phalanx` plugin object.
+`@arex95/phalanx` — an opinionated REST + Auth foundation for Vue 3 admin
+panels, installed as a plugin: `app.use(Phalanx, options)`. It ships no
+components and no styles.
 
-**Build:** Rollup with `@rollup/plugin-typescript`. Output is ESM only (`dist/index.mjs`). All peer dependencies (`vue`, `axios`, `@vueuse/core`, `jwt-decode`, `uuid`) are marked external. No `ofetch` — the library's only fetcher extension point is the `Fetcher` contract (`types/Fetcher.ts`); a consumer wiring `ofetch`/Apollo/anything else writes that adapter in their own project.
+Public documentation lives in `docs/` and is published to
+https://arex95.github.io/phalanx/ by `.github/workflows/docs.yml`. **Docs
+derived from a code change go in the same commit as the change.**
 
-**TypeScript paths** (configured in `tsconfig.json`):
-- `@/*` → `src/*`
-- `@composables/*`, `@config/*`, `@enums/*`, `@rest/*`, `@services/*`, `@types/*`, `@utils/*`
+**Build:** Rollup with `@rollup/plugin-typescript`, ESM only (`dist/index.mjs`).
+Peer dependencies — `vue`, `axios`, `@tanstack/vue-query`, `jwt-decode` — are
+external. There are exactly four; adding a fifth is a decision, not a detail.
 
-### Module structure
+**TypeScript paths:** `@/*` → `src/*`, plus `@composables/*`, `@config/*`,
+`@enums/*`, `@rest/*`, `@services/*`, `@types/*`, `@utils/*`. Rollup does not
+rewrite these in the emitted `.d.ts`, which is what `scripts/fix-dts-aliases.mjs`
+exists for. It has its own post-condition check and **exits non-zero** if any
+import in `dist/` cannot be resolved — a published package with unresolvable
+types was possible before it existed.
+
+## Module structure
 
 ```
 src/
-├── index.ts              # Plugin entry + re-exports everything
-├── config/               # Global mutable config (frozen singletons)
-│   ├── global/           # Token keys, endpoints, session, token paths, app key
-│   ├── axios/            # Axios instance + config
-│   └── auth/             # Auth fetcher config
-├── rest/
-│   └── RestStd.ts        # Base class for REST resources (extends for CRUD)
+├── index.ts          Plugin entry + re-exports
+├── actions/          defineAction, withActionBehaviour, ActionCancelledError
 ├── composables/
-│   ├── auth/useAuth.ts   # login/logout composable
-│   ├── axios/useFetch.ts # Axios-based fetch composable
-│   ├── paginators/       # usePaginator
-│   ├── sorters/          # useSorter
-│   ├── filters/          # useFilter
-│   ├── breakpoints/      # useBreakpoint
-│   └── monitoring/       # useUserActivity, useApiActivity
-├── fetchers/             # Adapter pattern: createAxiosFetcher, createOfetchFetcher
-├── services/             # Token extraction, refresh, storage, credentials
-├── errors/               # BaseError, NetworkError, AuthError, ValidationError, ServerError
-├── enums/                # HTTP exceptions, content types, breakpoints, key codes, storage, etc.
-├── types/                # TypeScript interfaces and types
-└── utils/                # Standalone utility functions (dates, strings, objects, storage, etc.)
+│   ├── auth/         useAuth
+│   ├── queries/      createDomainQueries, toJsonApi
+│   └── mutations/    createDomainMutations, crudAugment.typecheck.ts
+├── config/
+│   ├── global/       endpoints, tokenPaths, refreshTokenPaths, csrf, encryption, callbacks
+│   ├── axios/        the axios instance and its interceptors
+│   └── auth/         the auth fetcher
+├── crypto/           encryptField (AES-GCM + RSA-OAEP)
+├── rest/             RestStd
+├── services/         accessToken, refreshTokens, credentials, extractTokens
+├── errors/           BaseError + subclasses + normalizeHttpError
+├── enums/  types/  utils/  fetchers/
 ```
 
-### Key design patterns
+## Things that will bite you
 
-**Config singletons:** Each config module (`src/config/global/`) holds a frozen module-level variable and exposes `configX()` / `getX()` functions. These are called by the plugin `install()` method to initialize the library before any composables/services run.
+**The access token is in memory and nowhere else.** `services/accessToken.ts`
+holds a module-level `ref`. There is no `appKey`, no encrypted storage, no
+token in `localStorage` — those were removed in v6 because a key that ships in
+the bundle protects nothing. The refresh token is an `HttpOnly` cookie the
+library cannot read, and half the flow therefore lives in the backend
+(`docs/concepts/backend-contract.md`).
 
-**Fetcher abstraction (`src/types/Fetcher.ts`):** The library uses a `Fetcher` type — a single function that accepts a `FetcherConfig` and returns a Promise. `createAxiosFetcher` and `createOfetchFetcher` in `src/fetchers/` produce these. Most APIs accept an optional `fetcher` parameter, defaulting to the configured Axios instance.
+**`crudAugment.typecheck.ts` is not a vitest test.** Vitest does not typecheck,
+so its `@ts-expect-error` directives are checked by `vue-tsc` instead. They
+assert failures that must keep happening. If `pnpm typecheck` reports an unused
+`@ts-expect-error` directive there, a type-level guarantee has silently broken —
+that is the file doing its job, not noise to delete.
 
-**`RestStd` base class (`src/rest/RestStd.ts`):** Extend this for any API resource. Override `static resource = 'your-resource'`. Provides `getAll`, `getOne`, `create`, `update`, `patch`, `delete`, `bulkCreate`, `bulkUpdate`, `bulkDelete`, `upsert`, and `customRequest`. Set `static isFormData = true` to auto-convert data to `FormData`. Set `static retryConfig` to enable retry-with-backoff.
+**Two type traps live in this codebase, both of which compiled clean:**
+`Record<string, never>` has an implicit index signature, so it is not an empty
+type — use `Record<never, never>`. And a naked conditional type distributes over
+a union; `UseMutationReturnType` *is* a union, so comparisons need the
+`[T] extends [X]` tuple form.
 
-**Token paths (dot notation):** Tokens are extracted from auth responses using dot-notation paths (e.g. `"data.token.access"`), configured via `tokenPaths` and `refreshTokenPaths` in the plugin options.
+**Config singletons are module-level.** Fine in a browser, wrong in SSR request
+handling. Never drive them from a request handler.
 
-### Plugin initialization options (`PhalanxOptions`)
+**Custom service methods take at most one argument.** The inference in
+`createDomainMutations` cannot express more. Pass an object.
 
-- `appKey` — encryption key for credential storage
-- `endpoints.login / refresh / logout` — auth API endpoints
-- `tokenKeys.accessToken / refreshToken` — localStorage/sessionStorage keys
-- `tokenPaths.accessToken / refreshToken` — dot-notation path in login response
-- `refreshTokenPaths.accessToken / refreshToken` — dot-notation path in refresh response
-- `axios.baseURL / headers / timeout / withCredentials` — Axios instance config
+**`customRequest` takes a full `url`** and does not prefix `resource`.
+
+**Commit as `arex95`, never the global gitconfig identity.** The repo has a
+local `user.email` set for this reason.
+
+## Testing
+
+Tests sit beside their source (`src/**/*.test.ts`) and are excluded from the
+build tsconfig, so nothing leaks into the published `.d.ts`.
+
+Writing them found five bugs that reading the code had not. When adding a
+behaviour, write the case that **must fail** as well as the one that must pass —
+that is what caught the worst defects here. Do not count microtask ticks;
+use `vi.waitFor`. Reset module state with `vi.resetModules()` for singletons.
