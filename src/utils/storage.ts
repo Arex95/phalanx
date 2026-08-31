@@ -74,7 +74,7 @@ export async function getDecryptedItem(
 ): Promise<string | null> {
   let encryptedData: string | null = null;
 
-  // ── cookies ─────────────────────────────────────────────────────────────
+  // cookies
   if (location === 'cookie' || isServer) {
     const cookieStorage = getCookieStorage();
     encryptedData = cookieStorage.getItem(key);
@@ -89,7 +89,7 @@ export async function getDecryptedItem(
     if (location === 'cookie') return null;
   }
 
-  // ── sessionStorage ───────────────────────────────────────────────────────
+  // sessionStorage
   if (location === 'session' || location === 'any') {
     const ss = getSessionStorage();
     encryptedData = ss?.getItem(key) ?? null;
@@ -102,7 +102,7 @@ export async function getDecryptedItem(
     }
   }
 
-  // ── localStorage ─────────────────────────────────────────────────────────
+  // localStorage
   if (location === 'local' || location === 'any') {
     const ls = getStorage();
     encryptedData = ls?.getItem(key) ?? null;
@@ -115,7 +115,7 @@ export async function getDecryptedItem(
     }
   }
 
-  // ── cookies fallback for 'any' on client ─────────────────────────────────
+  // cookies fallback for 'any' on client
   // Checked last so that localStorage/sessionStorage take precedence,
   // but cookies stored explicitly with location='cookie' are still found.
   if (location === 'any' && !isServer) {

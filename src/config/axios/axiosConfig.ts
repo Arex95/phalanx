@@ -7,9 +7,9 @@ import axios, {
 } from 'axios';
 
 import { AxiosServiceOptions } from '@/types/AxiosServiceOptions';
-import { getAuthToken } from '@/services/credentials';
-import { getSessionPersistence } from '@config/global/sessionConfig';
-import { getAppKey } from '@/config/global';
+import { getAccessToken } from '@/services/accessToken';
+import { getCsrfConfig } from '@config/global/csrfConfig';
+import { getCookieStorage } from '@utils/ssr';
 import { getEndpointsConfig } from '@config/global/endpointsConfig';
 import { refreshTokens } from '@/services';
 import { createAxiosFetcher } from '@/fetchers/axios';
@@ -26,6 +26,7 @@ export class AxiosService {
   private cancelTokenSource: CancelTokenSource;
   private activeRequests: number = 0;
   private readonly refreshTokenUrl: string;
+  private readonly logoutUrl: string;
 
   private isRefreshing = false;
   private failedQueue: {
@@ -38,6 +39,7 @@ export class AxiosService {
 
     const endpointsConfig = getEndpointsConfig();
     this.refreshTokenUrl = endpointsConfig.REFRESH;
+    this.logoutUrl = endpointsConfig.LOGOUT;
 
     this.instance = axios.create({
       baseURL: options.baseURL ?? '',
@@ -47,6 +49,8 @@ export class AxiosService {
         'Content-Type': 'application/json',
         ...options.headers,
       },
+      // Must be true for the backend's HttpOnly refresh cookie to be sent —
+      // see ArexVueCoreOptions' doc comment.
       withCredentials: options.withCredentials ?? false,
     });
 
@@ -81,17 +85,28 @@ export class AxiosService {
     }
   }
 
+  /** Reads the (JS-readable, non-`HttpOnly`) CSRF cookie and echoes it as a
+   * header — only on the two requests that ride the `HttpOnly` auth cookie
+   * (see `csrfConfig.ts`); every other request has nothing to protect here. */
+  private setCsrfHeader(config: InternalAxiosRequestConfig): void {
+    const csrf = getCsrfConfig();
+    if (!csrf || !config.headers) return;
+    if (config.url !== this.refreshTokenUrl && config.url !== this.logoutUrl) return;
+    const value = getCookieStorage().getItem(csrf.cookieName);
+    if (value) {
+      config.headers[csrf.headerName] = value;
+    }
+  }
+
   private initializeInterceptors() {
-    // ── Request: attach Authorization using the session's storage location ──
+    // Request: attach the in-memory access token + CSRF header
     this.instance.interceptors.request.use(
-      async (config: InternalAxiosRequestConfig): Promise<InternalAxiosRequestConfig> => {
-        // Use persistence preference (not hardcoded "any") so the token is
-        // found regardless of whether it was stored in cookies, localStorage, etc.
-        const persistence = await getSessionPersistence();
-        const token = await getAuthToken(getAppKey(), persistence);
+      (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
+        const token = getAccessToken();
         if (token) {
           this.setAuthHeader(config, token);
         }
+        this.setCsrfHeader(config);
         config.cancelToken = this.cancelTokenSource.token;
         this.activeRequests++;
         return config;
@@ -99,7 +114,7 @@ export class AxiosService {
       (error: AxiosError) => Promise.reject(error)
     );
 
-    // ── Response: handle 401 with token refresh ──────────────────────────
+    // Response: handle 401 with token refresh
     this.instance.interceptors.response.use(
       (response: AxiosResponse) => {
         this.activeRequests--;
@@ -108,7 +123,7 @@ export class AxiosService {
       async (error: AxiosError) => {
         this.activeRequests--;
 
-        // Do not attempt refresh in SSR — storage is unavailable
+        // Do not attempt refresh in SSR — there is no cookie jar to send.
         if (typeof window === 'undefined') {
           return Promise.reject(error);
         }
@@ -141,8 +156,7 @@ export class AxiosService {
           const fetcher = createAxiosFetcher(this.instance);
           await refreshTokens(fetcher);
 
-          const persistence = await getSessionPersistence();
-          const newToken = await getAuthToken(getAppKey(), persistence);
+          const newToken = getAccessToken();
 
           if (!newToken) {
             const refreshError = new Error('[arex-core] New token not found after refresh.');

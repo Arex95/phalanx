@@ -1,17 +1,19 @@
-import { AuthTokenPaths, TokenValidationResult } from '@/types';
+import { AuthTokenPaths } from '@/types';
 import { safeGet } from '@utils/objects';
 
 /**
- * Extracts access + refresh tokens from a response object using dot-notation
- * paths. Throws when the path is missing or the value is not a string.
+ * Extracts the access token from a response object using a dot-notation
+ * path. There is no equivalent for the refresh token: it never appears in a
+ * JSON body the library reads — it travels as an `HttpOnly` cookie set by
+ * the backend, invisible to this code by design (see `refreshTokens.ts`).
+ * Throws when the path is missing or the value is not a string.
  */
-export const extractAndValidateTokens = (
+export const extractAccessToken = (
   data: unknown,
   tokenPaths: AuthTokenPaths,
   errorSource: string
-): TokenValidationResult => {
+): string => {
   const accessTokenPath = tokenPaths?.accessTokenPath || 'access_token';
-  const refreshTokenPath = tokenPaths?.refreshTokenPath || 'refresh_token';
 
   if (!data || typeof data !== 'object') {
     throw new Error(`${errorSource}_ERROR: No data received.`);
@@ -19,7 +21,6 @@ export const extractAndValidateTokens = (
 
   const dataObj = data as Record<string, unknown>;
   const accessToken = safeGet(dataObj, accessTokenPath.split('.'));
-  const refreshToken = safeGet(dataObj, refreshTokenPath.split('.'));
 
   if (!accessToken || typeof accessToken !== 'string') {
     throw new Error(
@@ -27,11 +28,5 @@ export const extractAndValidateTokens = (
     );
   }
 
-  if (!refreshToken || typeof refreshToken !== 'string') {
-    throw new Error(
-      `${errorSource}_ERROR: Refresh token not found or invalid at path '${refreshTokenPath}' in response.`
-    );
-  }
-
-  return { accessToken, refreshToken };
+  return accessToken;
 };

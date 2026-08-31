@@ -1,6 +1,6 @@
 import { AxiosInstance } from 'axios';
-import { Fetcher, FetcherConfig } from '../types/Fetcher';
-import { normalizeHttpError } from '../errors';
+import { Fetcher, FetcherConfig } from '@/types/Fetcher';
+import { normalizeHttpError } from '@/errors';
 
 /**
  * Creates a fetcher function using Axios.

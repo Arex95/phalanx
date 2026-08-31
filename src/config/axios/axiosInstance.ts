@@ -1,8 +1,8 @@
 import { AxiosService } from "./axiosConfig";
-import { AxiosServiceOptions } from "../../types/AxiosServiceOptions";
+import { AxiosServiceOptions } from "@/types/AxiosServiceOptions";
 import { AxiosInstance } from "axios";
-import { setDefaultAuthFetcherFactory } from "../auth/authFetcher";
-import { createAxiosFetcher } from "../../fetchers/axios";
+import { setDefaultAuthFetcherFactory } from "@/config/auth/authFetcher";
+import { createAxiosFetcher } from "@/fetchers/axios";
 
 let axiosServiceInstance: AxiosService | null = null;
 let defaultConfig: AxiosServiceOptions | null = null;

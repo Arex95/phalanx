@@ -2,12 +2,11 @@ import { App } from "vue";
 import { ArexVueCoreOptions } from "./types/ArexVueCoreOptions";
 import {
   configEndpoints,
-  configTokenKeys,
   configAxios,
-  configAppKey,
   configTokenPaths,
   configRefreshTokenPaths,
-  configRefreshTokenBodyKey,
+  configCsrf,
+  configEncryption,
   configCallbacks,
 } from "./config";
 
@@ -15,8 +14,9 @@ import {
  * Vue plugin entry point for `@arex95/vue-core`.
  *
  * Initializes the global configuration singletons in a deterministic order:
- * appKey → tokenKeys → endpoints → tokenPaths → refreshTokenPaths →
- * refreshTokenBodyKey → axios → callbacks.
+ * endpoints → tokenPaths → refreshTokenPaths → csrf → encryption → axios →
+ * callbacks. No `appKey`/`tokenKeys` step anymore — nothing about tokens is
+ * stored client-side (see `services/accessToken.ts`).
  */
 export const ArexVueCore = {
   install: (_app: App, options: ArexVueCoreOptions) => {
@@ -24,11 +24,6 @@ export const ArexVueCore = {
       throw new Error('[arex-core] No configuration options provided to ArexVueCore.install().');
     }
 
-    configAppKey({ appKey: options.appKey });
-    configTokenKeys({
-      accessTokenKey: options.tokenKeys.accessToken,
-      refreshTokenKey: options.tokenKeys.refreshToken,
-    });
     configEndpoints({
       loginEndpoint: options.endpoints.login,
       refreshEndpoint: options.endpoints.refresh,
@@ -36,13 +31,16 @@ export const ArexVueCore = {
     });
     configTokenPaths({
       accessTokenPath: options.tokenPaths.accessToken,
-      refreshTokenPath: options.tokenPaths.refreshToken,
     });
     configRefreshTokenPaths({
       accessTokenPath: options.refreshTokenPaths.accessToken,
-      refreshTokenPath: options.refreshTokenPaths.refreshToken,
     });
-    configRefreshTokenBodyKey(options.refreshTokenBodyKey);
+    if (options.csrf) {
+      configCsrf(options.csrf);
+    }
+    if (options.encryption) {
+      configEncryption(options.encryption);
+    }
     configAxios({
       baseURL: options.axios.baseURL,
       headers: options.axios.headers,
@@ -59,6 +57,7 @@ export const ArexVueCore = {
 
 // Public API surface — REST + Auth foundation only.
 export * from "./rest";
+export * from "./actions";
 export * from "./composables";
 export * from "./config";
 export * from "./enums";
@@ -67,3 +66,4 @@ export * from "./utils";
 export * from "./services";
 export * from "./fetchers";
 export * from "./errors";
+export * from "./crypto";

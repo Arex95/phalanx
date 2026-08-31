@@ -53,7 +53,12 @@ export interface BulkDeleteOptions {
 }
 
 export interface UpsertOptions<TData = unknown> {
-    data: TData & { id?: string | number };
+    // `| null`, not just `| undefined`: `RestStd.upsert` explicitly treats
+    // an id of `null` the same as a missing id (routes to create) — the
+    // type used to only allow `undefined`, so a caller passing `id: null`
+    // on purpose (a common "explicitly no id yet" value from a form model)
+    // couldn't do so without a cast, despite the runtime already supporting it.
+    data: TData & { id?: string | number | null };
     url?: string;
 }
 

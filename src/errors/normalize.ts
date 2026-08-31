@@ -4,9 +4,9 @@ import { AuthError } from './AuthError';
 import { ValidationError, ValidationIssue } from './ValidationError';
 import { ServerError } from './ServerError';
 
-type HttpErrorShape = {
+type HttpErrorInput = {
   message?: string;
-  response?: { status?: number; data?: unknown };
+  response?: { status?: number; data?: unknown; headers?: unknown };
   config?: { url?: string; method?: string };
   request?: { url?: string };
   isAxiosError?: boolean;
@@ -15,12 +15,12 @@ type HttpErrorShape = {
   data?: unknown;
 };
 
-function getStatus(e: HttpErrorShape): number | undefined {
+function getStatus(e: HttpErrorInput): number | undefined {
   return e?.response?.status ?? e?.statusCode ?? e?.status;
 }
 
-function isHttpShape(e: object): e is HttpErrorShape {
-  const r = e as HttpErrorShape;
+function isHttpErrorInput(e: object): e is HttpErrorInput {
+  const r = e as HttpErrorInput;
   return (
     'response' in r ||
     r.isAxiosError === true ||
@@ -101,8 +101,8 @@ export function normalizeHttpError(error: unknown): unknown {
   if (error instanceof BaseError) return error;
 
   if (error && typeof error === 'object') {
-    if (isHttpShape(error)) {
-      const e = error as HttpErrorShape;
+    if (isHttpErrorInput(error)) {
+      const e = error as HttpErrorInput;
       const status = getStatus(e);
       const responseData = e.response?.data ?? e.data;
       const message =
@@ -113,6 +113,11 @@ export function normalizeHttpError(error: unknown): unknown {
         url: e.config?.url ?? e.request?.url,
         method: e.config?.method,
         responseData,
+        // Preserved so a consumer can still read a backend-specific signal
+        // (e.g. a custom `x-error-code` header) after normalization — this
+        // used to be silently dropped, forcing consumers back to the raw,
+        // pre-normalization error just to read a header.
+        headers: e.response?.headers,
       };
 
       if (status === 401 || status === 403) {

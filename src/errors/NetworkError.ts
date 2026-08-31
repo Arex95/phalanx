@@ -1,12 +1,12 @@
 import { BaseError } from './BaseError';
 
-interface AxiosLikeError {
+interface AxiosErrorInput {
   message?: string;
   response?: { status?: number; data?: { message?: string } | Record<string, unknown> };
   config?: { url?: string; method?: string };
 }
 
-interface FetchLikeError {
+interface FetchErrorInput {
   message?: string;
   cause?: unknown;
 }
@@ -27,7 +27,7 @@ export class NetworkError extends BaseError {
     this.originalError = originalError;
   }
 
-  static fromAxiosError(error: AxiosLikeError): NetworkError {
+  static fromAxiosError(error: AxiosErrorInput): NetworkError {
     const statusCode = error.response?.status;
     const responseMessage = (error.response?.data as { message?: string } | undefined)?.message;
     const message = responseMessage || error.message || 'Network request failed';
@@ -39,7 +39,7 @@ export class NetworkError extends BaseError {
     });
   }
 
-  static fromFetchError(error: FetchLikeError): NetworkError {
+  static fromFetchError(error: FetchErrorInput): NetworkError {
     return new NetworkError(
       error.message || 'Network request failed',
       undefined,

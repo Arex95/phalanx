@@ -8,7 +8,7 @@
  *
  * Throws a descriptive error on Node.js < 15 instead of failing silently.
  */
-function getWebCrypto(): Crypto {
+export function getWebCrypto(): Crypto {
   const c =
     typeof globalThis !== 'undefined'
       ? globalThis.crypto
@@ -37,7 +37,7 @@ export function ab2hex(buffer: ArrayBuffer | Uint8Array): string {
 /**
  * Converts a hexadecimal string into a `Uint8Array`.
  */
-export function hex2ab(hex: string): Uint8Array {
+export function hex2ab(hex: string): Uint8Array<ArrayBuffer> {
   if (typeof hex !== 'string') {
     throw new TypeError('Input must be a string.');
   }
