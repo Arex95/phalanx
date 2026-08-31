@@ -50,7 +50,7 @@ export class AxiosService {
         ...options.headers,
       },
       // Must be true for the backend's HttpOnly refresh cookie to be sent —
-      // see ArexVueCoreOptions' doc comment.
+      // see PhalanxOptions' doc comment.
       withCredentials: options.withCredentials ?? false,
     });
 
@@ -73,7 +73,7 @@ export class AxiosService {
         prom.resolve(token);
       } else {
         // Neither error nor token — reject with a clear message rather than hanging
-        prom.reject(new Error('[arex-core] Token refresh completed but no token was produced.'));
+        prom.reject(new Error('[phalanx] Token refresh completed but no token was produced.'));
       }
     });
     this.failedQueue = [];
@@ -159,7 +159,7 @@ export class AxiosService {
           const newToken = getAccessToken();
 
           if (!newToken) {
-            const refreshError = new Error('[arex-core] New token not found after refresh.');
+            const refreshError = new Error('[phalanx] New token not found after refresh.');
             this.processQueue(refreshError, null);
             throw refreshError;
           }

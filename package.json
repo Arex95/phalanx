@@ -1,7 +1,7 @@
 {
-  "name": "@arex95/vue-core",
-  "version": "5.1.0",
-  "description": "REST + Auth foundation for Vue 3 apps. RestStd base class, encrypted token storage, automatic refresh, typed errors.",
+  "name": "@arex95/phalanx",
+  "version": "6.0.0",
+  "description": "Opinionated REST + Auth foundation for Vue 3 admin panels. Typed CRUD services, declarative actions with authorization and confirmation, and in-memory tokens with an HttpOnly refresh cookie.",
   "main": "dist/index.mjs",
   "module": "dist/index.mjs",
   "exports": {
@@ -33,15 +33,20 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Arex95/npm-arex-core.git"
+    "url": "https://github.com/Arex95/phalanx.git"
   },
   "keywords": [
     "vue",
     "vue3",
     "rest",
     "auth",
+    "admin",
+    "crud",
     "jwt",
-    "axios"
+    "csrf",
+    "axios",
+    "tanstack-query",
+    "typescript"
   ],
   "author": "Arturo Rafael Serrano Girón",
   "license": "MIT",
@@ -76,5 +81,9 @@
   },
   "engines": {
     "node": ">=15"
+  },
+  "homepage": "https://github.com/Arex95/phalanx#readme",
+  "bugs": {
+    "url": "https://github.com/Arex95/phalanx/issues"
   }
 }

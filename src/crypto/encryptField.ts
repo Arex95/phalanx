@@ -48,7 +48,7 @@ function base64ToBytes(base64: string): Uint8Array<ArrayBuffer> {
     bytes.set(node);
     return bytes;
   }
-  throw new Error('[arex-core] No base64 decoder available in this runtime.');
+  throw new Error('[phalanx] No base64 decoder available in this runtime.');
 }
 
 function pemToBytes(pem: string): Uint8Array<ArrayBuffer> {

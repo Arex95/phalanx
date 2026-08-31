@@ -1,4 +1,4 @@
-# CONTEXT.md — `@arex95/vue-core` — internal reference
+# CONTEXT.md — `@arex95/phalanx` — internal reference
 
 > Working reference for this repo. Covers architecture, contracts, module behavior, and usage patterns. Optimized for someone who just cloned the repo and needs to move fast.
 
@@ -6,7 +6,7 @@
 
 ## Identity
 
-- **Package:** `@arex95/vue-core`
+- **Package:** `@arex95/phalanx`
 - **Scope:** REST + Auth foundation for Vue 3 apps. Nothing else.
 - **Build:** Rollup → `dist/index.mjs` (ESM only). `"sideEffects": false`.
 - **Entry:** `src/index.ts`
@@ -19,9 +19,9 @@ Anything that duplicated `@vueuse/core`, `date-fns`, `zod`, `lodash`, `@tanstack
 ## Plugin install
 
 ```typescript
-import { ArexVueCore } from '@arex95/vue-core';
+import { Phalanx } from '@arex95/phalanx';
 
-app.use(ArexVueCore, {
+app.use(Phalanx, {
   appKey: 'aes-secret-here',
   endpoints:         { login: '/api/auth/login', refresh: '/api/auth/refresh', logout: '/api/auth/logout' },
   tokenKeys:         { accessToken: 'access_token', refreshToken: 'refresh_token' },
@@ -267,7 +267,7 @@ Also re-exported as a named export from `@/rest/RestStd` for convenience.
 
 | Type | Source |
 |---|---|
-| `ArexVueCoreOptions` | Plugin options |
+| `PhalanxOptions` | Plugin options |
 | `AxiosServiceOptions` | `{ baseURL, headers?, timeout?, withCredentials?, setupAuthInterceptors? }` |
 | `Fetcher`, `FetcherConfig` | Fetcher abstraction |
 | `LocationPreference` | `'local' \| 'session' \| 'cookie' \| 'any'` |
@@ -315,7 +315,7 @@ No tests, no dev server.
 
 ## End-to-end auth flow
 
-1. `app.use(ArexVueCore, options)` → singletons wired.
+1. `app.use(Phalanx, options)` → singletons wired.
 2. `useAuth().login(credentials, 'local')` → POST `/login` → `extractAndValidateTokens` → `configSession({ persistencePreference: 'local' })` → `storeTokens(access, refresh, 'local')` (AES + localStorage).
 3. Each axios call → request interceptor injects `Authorization: Bearer <access>`.
 4. On 401 (not the refresh call itself) → interceptor queues concurrent requests, calls `refreshTokens()`, releases queue with the fresh token, retries original.
