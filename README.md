@@ -20,7 +20,7 @@ Every Vue app repeats the same wiring: an axios instance with a Bearer intercept
 - **Single-flight refresh** — a 401 pauses concurrent requests, refreshes once, retries the queue transparently.
 - **Encrypted token storage** — AES-CBC via Web Crypto. Not plain text.
 - **Typed errors** — `AuthError` / `ValidationError` / `ServerError` / `NetworkError` are actually produced by the normalizer; `instanceof` works.
-- **Fetcher-agnostic** — Axios by default, `ofetch` supported, bring your own.
+- **Fetcher-agnostic** — Axios by default, bring your own (any function matching the `Fetcher` contract).
 - **SSR-friendly** — set `setupAuthInterceptors: false` and handle headers yourself in Nuxt.
 
 What we deliberately do **not** ship: debounces, breakpoints, string helpers, date utilities, `useFilter`/`useSorter`/`usePagination`, activity monitors. Those live in `@vueuse/core`, `date-fns`, `@tanstack/vue-query` — libraries that do them better than we ever will.
@@ -202,20 +202,25 @@ Original payload is always preserved in `error.context.responseData`.
 
 ## Fetcher-agnostic
 
-```typescript
-import { createOfetchFetcher, configAuthFetcher } from '@arex95/vue-core';
+This library ships one built-in fetcher, `createAxiosFetcher` — but the real extension point is the `Fetcher` contract: any function matching `(config: FetcherConfig) => Promise<unknown>` works, wired per-service or as the default auth fetcher.
 
-// Use ofetch for auth requests
-configAuthFetcher(createOfetchFetcher('https://api.example.com'));
+```typescript
+import { configAuthFetcher, type Fetcher } from '@arex95/vue-core';
+import { $fetch } from 'ofetch';
+
+const ofetchFetcher: Fetcher = (config) =>
+  $fetch(config.url, { method: config.method, query: config.params, body: config.data, headers: config.headers });
+
+configAuthFetcher(ofetchFetcher);
 
 // Or per-service
 export class UserService extends RestStd {
   static override resource = 'users';
-  static fetchFn = createOfetchFetcher('https://users.example.com');
+  static fetchFn = ofetchFetcher;
 }
 ```
 
-Any function matching `(config: FetcherConfig) => Promise<unknown>` works. `ofetch` is an optional peer dependency — it's only imported when you actually call `createOfetchFetcher`.
+Nothing beyond `axios` is a dependency of this library — `ofetch`, Apollo, native `fetch`, whatever you pick lives entirely in your own project.
 
 ---
 
@@ -262,7 +267,6 @@ With `setupAuthInterceptors: false` the library skips interceptor setup and lets
 - Vue 3
 - Node.js 15+ (Web Crypto API required for token encryption)
 - Peer deps: `vue`, `axios`, `jwt-decode`, `uuid`
-- Optional peer dep: `ofetch` (only needed if you use `createOfetchFetcher`)
 
 ## License
 

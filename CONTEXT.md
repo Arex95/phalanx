@@ -162,8 +162,7 @@ interface FetcherConfig {
 }
 ```
 
-- `createAxiosFetcher(axiosInstance)` — thin adapter. Returns `response.data`. Normalizes errors.
-- `createOfetchFetcher(baseURL?, defaultOptions?)` — lazy `await import('ofetch')` inside the fetcher so that merely importing this package does not resolve `ofetch`. `ofetch` is an **optional** peer dependency for that reason.
+- `createAxiosFetcher(axiosInstance)` — thin adapter. Returns `response.data`. Normalizes errors. The only built-in fetcher; anything else (`ofetch`, Apollo, native `fetch`) is a `Fetcher`-shaped function the consumer writes in their own project, not something this library ships or depends on.
 
 ---
 
@@ -308,7 +307,7 @@ pnpm release:minor
 pnpm release:major
 ```
 
-Rollup emits ESM only (`dist/index.mjs`) with `.d.ts` bundled. Externals: `vue`, `axios`, `ofetch`, `jwt-decode`, `uuid`.
+Rollup emits ESM only (`dist/index.mjs`) with `.d.ts` bundled. Externals: `vue`, `axios`, `jwt-decode`, `uuid`, `@tanstack/vue-query`.
 
 No tests, no dev server.
 

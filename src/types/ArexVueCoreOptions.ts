@@ -1,13 +1,17 @@
 import { AxiosServiceOptions } from "./AxiosServiceOptions";
+import { CsrfConfig } from "./Csrf";
+import { EncryptionConfig } from "./Encryption";
 
 /**
  * Configuration object for initializing the `@arex95/vue-core` plugin.
  * Passed as the second argument to `app.use(ArexVueCore, options)`.
+ *
+ * No `appKey` and no `tokenKeys`: the access token lives in memory only and
+ * the refresh token lives in an `HttpOnly` cookie the backend manages —
+ * there is nothing left for this library to encrypt or address by storage
+ * key. Set `axios.withCredentials: true` so that cookie is actually sent.
  */
 export interface ArexVueCoreOptions {
-  /** Secret key used to encrypt tokens at rest (AES-CBC via Web Crypto). */
-  appKey: string;
-
   /** Authentication API endpoints. */
   endpoints: {
     login: string;
@@ -15,30 +19,30 @@ export interface ArexVueCoreOptions {
     logout: string;
   };
 
-  /** Storage keys used to persist tokens (localStorage / sessionStorage / cookies). */
-  tokenKeys: {
-    accessToken: string;
-    refreshToken: string;
-  };
-
-  /** Dot-notation paths to extract tokens from the LOGIN response. */
+  /** Dot-notation path to extract the access token from the LOGIN response. */
   tokenPaths: {
     accessToken: string;
-    refreshToken: string;
   };
 
-  /** Dot-notation paths to extract tokens from the REFRESH response. */
+  /** Dot-notation path to extract the access token from the REFRESH response. */
   refreshTokenPaths: {
     accessToken: string;
-    refreshToken: string;
   };
 
   /**
-   * Body key used when POSTing the refresh token to the refresh endpoint.
-   * Default: `'refresh_token'` (OAuth2 / Laravel convention).
-   * Set to `'refreshToken'` for backends with camelCase conventions (Spring, NestJS).
+   * Double Submit Cookie config for the refresh/logout endpoints. Optional —
+   * omit if the backend doesn't require it yet.
    */
-  refreshTokenBodyKey?: string;
+  csrf?: CsrfConfig;
+
+  /**
+   * Public key for `encryptField` (client-side field-level encryption of
+   * outbound user data — unrelated to the auth token flow above). Optional,
+   * same as `csrf`: omit if this project doesn't use `encryptField`. Can
+   * also be set separately via `configEncryption()` for a project that
+   * doesn't want it tied to plugin install order.
+   */
+  encryption?: EncryptionConfig;
 
   /** Axios instance options (baseURL, headers, timeout, interceptors, …). */
   axios: AxiosServiceOptions;

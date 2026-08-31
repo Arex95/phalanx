@@ -11,9 +11,8 @@ export default {
   external: [
     'vue',
     'axios',
-    'ofetch',
     'jwt-decode',
-    'uuid',
+    '@tanstack/vue-query',
   ],
   plugins: [typescript()],
 };

@@ -95,7 +95,12 @@ export class RestStd {
 
     private static buildUrl(baseUrl: string, suffix?: string): string {
         const cleanBase = baseUrl.replace(/\/$/, '');
-        if (!suffix) return cleanBase;
+        // `suffix === undefined`, not `!suffix`: an empty string is a real,
+        // intentional suffix here (e.g. `upsert`'s documented `id: ''`
+        // sentinel), not the same as "no suffix was given". `!suffix` would
+        // silently drop it, producing `widgets` instead of `widgets/` and
+        // making an empty-string id indistinguishable from no id at all.
+        if (suffix === undefined) return cleanBase;
         const cleanSuffix = suffix.startsWith('/') ? suffix : `/${suffix}`;
         return cleanBase + cleanSuffix;
     }
@@ -130,9 +135,9 @@ export class RestStd {
         this.headers = { ...this.headers, ...headers };
     }
 
-    // ── Read ────────────────────────────────────────────────────────────
+    // Read
 
-    static getAll<
+    static async getAll<
         TResponse = unknown,
         TParams extends Record<string, unknown> = Record<string, unknown>,
         TData = unknown
@@ -151,7 +156,7 @@ export class RestStd {
         });
     }
 
-    static getOne<
+    static async getOne<
         TResponse = unknown,
         TParams extends Record<string, unknown> = Record<string, unknown>
     >(options: GetOneOptions<TParams>): Promise<TResponse> {
@@ -165,9 +170,9 @@ export class RestStd {
         });
     }
 
-    // ── Write ───────────────────────────────────────────────────────────
+    // Write
 
-    static create<TResponse = unknown, TData = unknown>(
+    static async create<TResponse = unknown, TData = unknown>(
         options: CreateOptions<TData>
     ): Promise<TResponse> {
         this.validateResource();
@@ -181,7 +186,7 @@ export class RestStd {
         });
     }
 
-    static update<TResponse = unknown, TData = unknown>(
+    static async update<TResponse = unknown, TData = unknown>(
         options: UpdateOptions<TData>
     ): Promise<TResponse> {
         this.validateResource();
@@ -195,7 +200,7 @@ export class RestStd {
         });
     }
 
-    static patch<TResponse = unknown, TData = unknown>(
+    static async patch<TResponse = unknown, TData = unknown>(
         options: PatchOptions<TData>
     ): Promise<TResponse> {
         this.validateResource();
@@ -209,7 +214,7 @@ export class RestStd {
         });
     }
 
-    static delete<TResponse = unknown>(options: DeleteOptions): Promise<TResponse> {
+    static async delete<TResponse = unknown>(options: DeleteOptions): Promise<TResponse> {
         this.validateResource();
         const { id, url } = options;
         return this.executeFetch<TResponse>({
@@ -219,9 +224,9 @@ export class RestStd {
         });
     }
 
-    // ── Bulk ────────────────────────────────────────────────────────────
+    // Bulk
 
-    static bulkCreate<TResponse = unknown, TData = unknown>(
+    static async bulkCreate<TResponse = unknown, TData = unknown>(
         options: BulkCreateOptions<TData>
     ): Promise<TResponse> {
         this.validateResource();
@@ -235,7 +240,7 @@ export class RestStd {
         });
     }
 
-    static bulkUpdate<TResponse = unknown, TData = unknown>(
+    static async bulkUpdate<TResponse = unknown, TData = unknown>(
         options: BulkUpdateOptions<TData>
     ): Promise<TResponse> {
         this.validateResource();
@@ -249,7 +254,7 @@ export class RestStd {
         });
     }
 
-    static bulkDelete<TResponse = unknown>(options: BulkDeleteOptions): Promise<TResponse> {
+    static async bulkDelete<TResponse = unknown>(options: BulkDeleteOptions): Promise<TResponse> {
         this.validateResource();
         const { ids, url } = options;
         const { body, headers } = this.prepareWrite({ ids });
@@ -261,7 +266,7 @@ export class RestStd {
         });
     }
 
-    // ── Upsert ──────────────────────────────────────────────────────────
+    // Upsert
 
     /**
      * Updates when `data.id` is defined (including `0` and `''`), creates
@@ -284,7 +289,7 @@ export class RestStd {
         });
     }
 
-    // ── Custom ──────────────────────────────────────────────────────────
+    // Custom
 
     static customRequest<
         TResponse = unknown,
