@@ -1,272 +1,133 @@
-# @arex95/phalanx
+# Phalanx
 
-**REST + Auth foundation for Vue 3 apps.**
+**Opinionated REST + Auth foundation for Vue 3 admin panels.**
 
-A base class for your REST resources. Automatic JWT refresh on 401. Encrypted token storage. A typed error hierarchy you can actually branch on. Nothing else.
+Declare a resource once. The service, its TanStack queries and mutations, its
+permissions, its confirmations and its cache invalidation all derive from that
+one declaration.
 
-```sh
+📖 **[Documentation](https://github.com/Arex95/phalanx/tree/main/docs)** ·
+[Why Phalanx](docs/concepts/why-phalanx.md) ·
+[Backend contract](docs/concepts/backend-contract.md)
+
+---
+
+## What it does
+
+- **A REST base class.** `RestStd` gives every resource the same eleven
+  methods, plus whatever custom operations you declare on it.
+- **Auth that does not pretend.** The access token lives in memory and is never
+  persisted; the refresh token rides in an `HttpOnly` cookie the library cannot
+  read. One refresh in flight, parallel 401s queued behind it.
+- **The 20% that is not CRUD.** Permission, confirmation, notification and
+  invalidation declared as data next to the operation, instead of rebuilt by
+  hand in every view.
+- **Typed all the way down.** A service's custom methods appear on its queries
+  and mutations with their real argument and return types, inferred.
+
+It ships **no components and no styles**. What the screen looks like stays
+yours.
+
+## Install
+
+```bash
 pnpm add @arex95/phalanx
+pnpm add vue axios @tanstack/vue-query jwt-decode
 ```
 
----
+## Use
 
-## Why this library?
-
-Every Vue app repeats the same wiring: an axios instance with a Bearer interceptor, a queue that pauses requests while a refresh is in flight, encrypted tokens in `localStorage`, and a class that turns `/users`, `/products`, `/orders` into consistent CRUD calls.
-
-`@arex95/phalanx` is that wiring — nothing more:
-
-- **`RestStd`** — extend, override `resource`, get `getAll` / `getOne` / `create` / `update` / `patch` / `delete` / `bulk*` / `upsert` / `customRequest`.
-- **Single-flight refresh** — a 401 pauses concurrent requests, refreshes once, retries the queue transparently.
-- **Encrypted token storage** — AES-CBC via Web Crypto. Not plain text.
-- **Typed errors** — `AuthError` / `ValidationError` / `ServerError` / `NetworkError` are actually produced by the normalizer; `instanceof` works.
-- **Fetcher-agnostic** — Axios by default, bring your own (any function matching the `Fetcher` contract).
-- **SSR-friendly** — set `setupAuthInterceptors: false` and handle headers yourself in Nuxt.
-
-What we deliberately do **not** ship: debounces, breakpoints, string helpers, date utilities, `useFilter`/`useSorter`/`usePagination`, activity monitors. Those live in `@vueuse/core`, `date-fns`, `@tanstack/vue-query` — libraries that do them better than we ever will.
-
----
-
-## Setup
-
-```typescript
-// main.ts
+```ts
 import { createApp } from 'vue';
+import { VueQueryPlugin } from '@tanstack/vue-query';
 import { Phalanx } from '@arex95/phalanx';
 
-app.use(Phalanx, {
-  appKey: import.meta.env.VITE_APP_KEY, // encrypts tokens at rest
-
-  endpoints: {
-    login:   'auth/login',
-    refresh: 'auth/refresh',
-    logout:  'auth/logout',
-  },
-
-  tokenKeys: {
-    accessToken:  'myapp_access',
-    refreshToken: 'myapp_refresh',
-  },
-
-  // Dot-notation paths to extract tokens from the login response
-  tokenPaths: {
-    accessToken:  'data.access_token',
-    refreshToken: 'data.refresh_token',
-  },
-  refreshTokenPaths: {
-    accessToken:  'data.access_token',
-    refreshToken: 'data.refresh_token',
-  },
-
-  // Body key used when POSTing to the refresh endpoint.
-  // Default: 'refresh_token'. Set to 'refreshToken' for Spring / NestJS backends.
-  refreshTokenBodyKey: 'refresh_token',
-
-  axios: {
-    baseURL: import.meta.env.VITE_API_URL,
-    headers: { 'X-API-Key': import.meta.env.VITE_API_KEY },
-    setupAuthInterceptors: true, // set to false for Nuxt SSR
-  },
-
-  onRefreshFailed: () => router.push('/login'),
-  onLogout:        () => router.push('/login'),
-});
+createApp(App)
+    .use(VueQueryPlugin)
+    .use(Phalanx, {
+        endpoints: { login: '/auth/login', refresh: '/auth/refresh', logout: '/auth/logout' },
+        tokenPaths: { accessToken: 'data.access_token' },
+        refreshTokenPaths: { accessToken: 'data.access_token' },
+        axios: { baseURL: import.meta.env.VITE_API_URL, withCredentials: true }
+    })
+    .mount('#app');
 ```
 
----
+```ts
+import { RestStd, defineAction, createDomainQueries, createDomainMutations } from '@arex95/phalanx';
 
-## `RestStd` — the core pattern
+class UserService extends RestStd {
+    static resource = 'users';
 
-Extend and go:
-
-```typescript
-import { RestStd } from '@arex95/phalanx';
-
-export class ProductService extends RestStd {
-  static override resource = 'catalog/products';
+    static suspend = defineAction(
+        (id: string) => this.customRequest({ method: 'POST', url: `users/${id}/suspend` }),
+        { permission: 'users.suspend', requiresConfirmation: true, invalidate: ['users'] }
+    );
 }
 
-const products = await ProductService.getAll<Product[]>({ params: { page: 1 } });
-const product  = await ProductService.getOne<Product>({ id: 42 });
-await ProductService.create<Product, ProductPayload>({ data: { name: 'Widget' } });
-await ProductService.patch<Product>({ id: 42, data: { price: 9.99 } });
-await ProductService.delete({ id: 42 });
+const keys = { all: 'users', one: 'user' };
+export const userQueries = createDomainQueries({ service: UserService, keys });
+export const userMutations = createDomainMutations({ service: UserService, keys });
 ```
 
-### Custom endpoints
+`suspend` is now a mutation with `isAuthorized`, a confirmation step and its own
+invalidation — typed from the service method, not declared twice.
 
-```typescript
-export class CheckoutService extends RestStd {
-  static override resource = 'sales/checkouts';
+## This needs something from your backend
 
-  static complete(data: PaymentData) {
-    return this.customRequest<CompletionResponse>({
-      method: 'POST',
-      url: 'sales/checkout/complete',
-      data,
-    });
-  }
-}
+The refresh cookie can only be set by a server, so half the auth model lives in
+your API:
+
+```http
+Set-Cookie: refresh_token=…; HttpOnly; Secure; SameSite=None; Path=/auth/refresh
 ```
 
-### File uploads
-
-Pass a `FormData` (or a `Blob` / `ArrayBuffer`) and the library sends it as multipart, letting the underlying client add the correct boundary. For plain objects, convert with the exported helper:
-
-```typescript
-import { objectToFormData } from '@arex95/phalanx';
-
-await ProductService.create({
-  data: objectToFormData({ name, image: file, tags: ['a', 'b'] }),
-});
-```
-
-### Retry with backoff
-
-```typescript
-export class OrderService extends RestStd {
-  static override resource = 'orders';
-  static retryConfig = { retries: 3, retryDelay: 1000 };
-}
-```
-
-Retries kick in on 5xx, 408, 429, and network errors — configurable via `retryCondition`.
-
----
-
-## Authentication
-
-```typescript
-import { useAuth, verifyAuth, cleanCredentials } from '@arex95/phalanx';
-
-const { login, logout } = useAuth();
-
-// Storage: 'local' | 'session' | 'cookie'
-await login({ email, password }, 'local');
-
-const isAuthed = await verifyAuth(); // decodes JWT, checks exp
-
-await logout();                // POST /logout, clears storage, calls onLogout
-await cleanCredentials('any'); // wipe every storage location manually
-```
-
-### Automatic refresh
-
-With `setupAuthInterceptors: true`, every 401 triggers a silent refresh:
-
-```
-Request → 401
-  → POST /auth/refresh with { [refreshTokenBodyKey]: <token> }
-  → new tokens stored (same storage location as before)
-  → original request retried with the new access token
-```
-
-Concurrent requests that hit 401 while a refresh is in flight are queued and released with the fresh token — a single refresh per burst. If the refresh itself fails, `onRefreshFailed` is called (fallback: `window.location.reload()`).
-
----
-
-## Typed errors
-
-The library normalizes every HTTP error into a discriminable class before it reaches your `catch`:
-
-```typescript
-import { AuthError, ValidationError, ServerError, NetworkError } from '@arex95/phalanx';
-
-try {
-  await ProductService.create({ data });
-} catch (error) {
-  if (error instanceof AuthError)       return router.push('/login');
-  if (error instanceof ValidationError) {
-    error.issues.forEach(i => setFieldError(i.field, i.message));
-    return;
-  }
-  if (error instanceof ServerError)     return showToast('Server unavailable, retrying…');
-  if (error instanceof NetworkError)    return showToast(`Network error ${error.statusCode ?? ''}`);
-  throw error;
-}
-```
-
-Mapping:
-
-| Status | Class | Extras |
-|---|---|---|
-| 401 / 403 | `AuthError` | — |
-| 422 | `ValidationError` | `.issues[]` extracted from common shapes (Spring, NestJS, JSON:API, Laravel) |
-| 5xx | `ServerError` | `.statusCode` |
-| other HTTP | `NetworkError` | `.statusCode`, `.originalError` |
-| native `fetch` TypeError | `NetworkError` | via `fromFetchError` |
-
-Original payload is always preserved in `error.context.responseData`.
-
----
-
-## Fetcher-agnostic
-
-This library ships one built-in fetcher, `createAxiosFetcher` — but the real extension point is the `Fetcher` contract: any function matching `(config: FetcherConfig) => Promise<unknown>` works, wired per-service or as the default auth fetcher.
-
-```typescript
-import { configAuthFetcher, type Fetcher } from '@arex95/phalanx';
-import { $fetch } from 'ofetch';
-
-const ofetchFetcher: Fetcher = (config) =>
-  $fetch(config.url, { method: config.method, query: config.params, body: config.data, headers: config.headers });
-
-configAuthFetcher(ofetchFetcher);
-
-// Or per-service
-export class UserService extends RestStd {
-  static override resource = 'users';
-  static fetchFn = ofetchFetcher;
-}
-```
-
-Nothing beyond `axios` is a dependency of this library — `ofetch`, Apollo, native `fetch`, whatever you pick lives entirely in your own project.
-
----
-
-## Token storage
-
-| Location | Stores in | Persistence | Read by `'any'`? |
-|---|---|---|---|
-| `'local'` | `localStorage` | Until cleared | ✅ |
-| `'session'` | `sessionStorage` | Until tab close | ✅ |
-| `'cookie'` | `document.cookie` | Configurable expiry | ✅ |
-| `'any'` | `localStorage` on write | — | — |
-
-Tokens are encrypted with AES-CBC-256 (Web Crypto) before hitting any location. `'local'` is the recommended default for SPAs.
-
----
-
-## Nuxt / SSR
-
-```typescript
-// plugins/phalanx.ts
-export default defineNuxtPlugin({
-  enforce: 'pre',
-  setup(nuxt) {
-    const config = useRuntimeConfig();
-    nuxt.vueApp.use(Phalanx, {
-      appKey: config.public.appKey,
-      // ...
-      axios: {
-        baseURL: config.public.apiUrl,
-        setupAuthInterceptors: false, // you attach headers manually
-      },
-      onRefreshFailed: () => navigateTo('/login'),
-    });
-  },
-});
-```
-
-With `setupAuthInterceptors: false` the library skips interceptor setup and lets you inject the `Authorization` header from your own server plugin (essential for SSR where `localStorage` doesn't exist).
-
----
+The refresh token must **not** also be returned in the JSON body, and
+cross-origin setups need `Access-Control-Allow-Credentials: true` with an
+explicit origin — `*` is rejected by browsers when credentials are involved,
+and it fails silently. The full list is in
+[Backend contract](docs/concepts/backend-contract.md).
 
 ## Requirements
 
-- Vue 3
-- Node.js 15+ (Web Crypto API required for token encryption)
-- Peer deps: `vue`, `axios`, `jwt-decode`, `uuid`
+| Peer dependency | Version |
+|---|---|
+| `vue` | `>=3.0.0` |
+| `axios` | `>=1.6.0` |
+| `@tanstack/vue-query` | `>=5.0.0` |
+| `jwt-decode` | `^4.0.0` |
+
+Node 15+ to build. ESM only.
+
+## Development
+
+```bash
+pnpm install
+pnpm test         # 322 tests
+pnpm typecheck    # source
+pnpm lint
+pnpm build
+pnpm -C docs dev  # documentation site
+```
+
+`prepublishOnly` runs typecheck, lint, tests and build. A failing gate blocks
+the publish.
+
+## Migrating from `@arex95/vue-core`
+
+v6 is a breaking rewrite, and the package changed name.
+
+| Removed | Replacement |
+|---|---|
+| `appKey`, `configKey` | nothing — a key shipped in the bundle protects nothing |
+| `tokenKeys`, `configTokens`, `storeTokens` | the token lives in memory; read `accessToken` |
+| token storage modes (`local`, `session`, `cookie`) | the refresh token is an `HttpOnly` cookie set by the backend |
+| `refreshTokenBodyKey` | the refresh request has no body |
+| `createOfetchFetcher` | any function matching the `Fetcher` contract |
+| `ArexVueCore`, `ArexVueCoreOptions` | `Phalanx`, `PhalanxOptions` |
+
+Why the old storage design was unsound is written up in
+[The auth model](docs/concepts/auth-model.md).
 
 ## License
 

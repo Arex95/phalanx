@@ -7,6 +7,10 @@ export default defineConfig({
     lastUpdated: true,
     cleanUrls: true,
 
+    // GitHub Pages serves this from /phalanx/. Set DOCS_BASE=/ when a custom
+    // domain serves it from the root — otherwise every asset resolves to a 404.
+    base: process.env.DOCS_BASE ?? '/phalanx/',
+
     themeConfig: {
         nav: [
             { text: 'Guide', link: '/guide/getting-started' },
