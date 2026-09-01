@@ -14,7 +14,7 @@ pnpm add vue axios @tanstack/vue-query jwt-decode
 | Peer dependency | Version | Used for |
 |---|---|---|
 | `vue` | `>=3.0.0` | reactivity, the plugin |
-| `axios` | `>=1.6.0` | the default transport and its interceptors |
+| `axios` | `>=1.15.2` | the default transport and its interceptors |
 | `@tanstack/vue-query` | `>=5.0.0` | query and mutation state |
 | `jwt-decode` | `^4.0.0` | reading `exp` from the access token |
 

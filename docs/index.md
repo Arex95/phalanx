@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: Phalanx
-  text: REST and auth for Vue 3 admin panels
+  text: REST and auth for Vue admin panels
   tagline: Declare a resource once and get its service, queries, mutations and custom actions — with session handling, typed errors and cache invalidation already wired.
   actions:
     - theme: brand

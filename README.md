@@ -74,7 +74,7 @@ It ships no components and no styles.
 | Peer dependency | Version |
 |---|---|
 | `vue` | `>=3.0.0` |
-| `axios` | `>=1.6.0` |
+| `axios` | `>=1.15.2` |
 | `@tanstack/vue-query` | `>=5.0.0` |
 | `jwt-decode` | `^4.0.0` |
 
