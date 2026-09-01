@@ -1,104 +1,114 @@
 # Configuration
 
-Everything is passed once, to `app.use(Phalanx, options)`. The plugin
-initialises the configuration singletons in a fixed order: endpoints →
-token paths → refresh token paths → CSRF → encryption → axios → callbacks.
-
-## Options
+All configuration is passed to `app.use(Phalanx, options)`.
 
 ```ts
 interface PhalanxOptions {
-    endpoints: { login: string; refresh: string; logout: string };
-    tokenPaths: { accessToken: string };
-    refreshTokenPaths: { accessToken: string };
-    csrf?: { headerName: string; cookieName: string };
-    encryption?: { publicKeyPem: string };
-    axios: AxiosServiceOptions;
-    onRefreshFailed?: () => void;
-    onLogout?: () => void;
+    endpoints:          { login: string; refresh: string; logout: string };
+    tokenPaths:         { accessToken: string };
+    refreshTokenPaths:  { accessToken: string };
+    axios:              AxiosServiceOptions;
+    csrf?:              { headerName: string; cookieName: string };
+    encryption?:        { publicKeyPem: string };
+    onRefreshFailed?:   () => void;
+    onLogout?:          () => void;
 }
 ```
 
-### `endpoints`
+## `endpoints`
 
-The three authentication routes, relative to the axios `baseURL`.
+The three authentication routes, resolved against the axios `baseURL`.
 
-### `tokenPaths` and `refreshTokenPaths`
+## `tokenPaths` · `refreshTokenPaths`
 
-Dot-notation paths to the access token inside each response body. They are
-separate because login and refresh responses often differ in shape.
+Dot-notation paths to the access token in each response body.
 
 ```ts
-tokenPaths: { accessToken: 'data.access_token' },   // POST /auth/login
-refreshTokenPaths: { accessToken: 'access_token' }  // POST /auth/refresh
+tokenPaths:        { accessToken: 'data.access_token' },  // POST /auth/login
+refreshTokenPaths: { accessToken: 'access_token' }        // POST /auth/refresh
 ```
 
-There is no path for the refresh token. Phalanx never reads one — it lives in
-an `HttpOnly` cookie that JavaScript cannot see. That is the point.
+They are separate because login and refresh responses often differ in shape.
+There is no path for the refresh token: it is read from a cookie by the browser,
+not from the body by Phalanx.
 
-### `csrf`
+## `axios`
+
+```ts
+interface AxiosServiceOptions {
+    baseURL: string;
+    headers?: Record<string, string>;
+    timeout?: number;
+    withCredentials?: boolean;
+    setupAuthInterceptors?: boolean;   // default: true
+}
+```
+
+`withCredentials: true` is required for the refresh cookie to travel on a
+cross-origin API.
+
+`setupAuthInterceptors: false` returns a configured axios instance with no
+bearer-token or 401-refresh interceptors attached — useful under SSR, or when
+the application drives authentication itself.
+
+## `csrf`
 
 ```ts
 csrf: { headerName: 'X-XSRF-TOKEN', cookieName: 'XSRF-TOKEN' }
 ```
 
-Enables Double Submit Cookie on **refresh and logout only**. Those are the only
-requests that ride on an automatically attached cookie, so they are the only
-ones exposed to CSRF. Requests carrying a bearer header are immune by
-construction and get no extra header.
+Mirrors the readable CSRF cookie into a header on the refresh and logout
+requests, which are the two that travel on an automatically attached cookie.
+Requests carrying a bearer header are not affected.
 
-Omit the option and no CSRF header is sent.
+Omitted, no CSRF header is sent.
 
-### `encryption`
+## `encryption`
 
 ```ts
 encryption: { publicKeyPem: import.meta.env.VITE_ENCRYPTION_PUBLIC_KEY }
 ```
 
-Only needed if you call `encryptField()`. See
-[Field encryption](/guide/field-encryption).
+Required only by [`encryptField()`](/guide/field-encryption).
 
-### `axios`
+## `onRefreshFailed` · `onLogout`
 
-```ts
-axios: {
-    baseURL: string;
-    headers?: Record<string, string>;
-    timeout?: number;
-    withCredentials?: boolean;
-    setupAuthInterceptors?: boolean;
-}
-```
-
-`setupAuthInterceptors: false` disables the bearer-token and 401-refresh
-interceptors entirely, leaving a plain configured axios instance. Use it when
-you want to drive auth yourself.
-
-### `onRefreshFailed` and `onLogout`
-
-Called when the session ends — a rejected refresh, or a completed logout. The
-default is `window.location.reload()`, which discards unsaved state. Provide
-them to route instead:
+Called when the session ends — a rejected refresh, or a completed logout.
 
 ```ts
 onRefreshFailed: () => router.push({ name: 'login' }),
-onLogout: () => router.push({ name: 'login' })
+onLogout:        () => router.push({ name: 'login' })
 ```
+
+Default: `window.location.reload()`.
 
 ## Reading configuration back
 
-Every config singleton has a getter — `getEndpointsConfig()`,
-`getTokenPathsConfig()`, `getCsrfConfig()`, `getCallbacksConfig()`,
-`getEncryptionPublicKeyPem()`.
+Each option has a getter, useful in tests and in code that runs outside a
+component.
 
-They do **not** behave the same way when read before the plugin is installed,
-and the difference matters:
-
-| Getter | Before `app.use(Phalanx, …)` |
+| Getter | Returns before the plugin is installed |
 |---|---|
-| `getEndpointsConfig()` | returns the defaults `/login`, `/refresh`, `/logout` |
-| `getCsrfConfig()` | returns `null` — no CSRF header is sent |
-| `getEncryptionPublicKeyPem()` | **throws** |
+| `getEndpointsConfig()` | the defaults `/login`, `/refresh`, `/logout` |
+| `getTokenPathsConfig()` · `getRefreshTokenPathsConfig()` | `{ accessTokenPath: 'data.access_token' }` |
+| `getCsrfConfig()` | `null` |
+| `getCallbacksConfig()` | `{}` |
+| `getEncryptionPublicKeyPem()` | throws |
+| `getConfiguredAxiosInstance()` | lazily creates an instance with axios defaults |
 
-Install the plugin before anything issues a request. Without it, auth calls go
-to the default paths against the axios `baseURL`.
+Install the plugin before any code issues a request.
+
+## Per-service overrides
+
+Options that vary by resource are set on the service rather than globally:
+
+```ts
+class UserService extends RestStd {
+    static resource = 'users';
+    static headers = { 'X-Tenant': tenantId };
+    static retryConfig = { retries: 3 };
+    static fetchFn = createAxiosFetcher(anotherInstance);
+}
+```
+
+See [Services](/guide/services).

@@ -1,99 +1,141 @@
-# Public API
+# API reference
 
-Everything is a named export from `@arex95/phalanx`. There is no default
-export.
+Named exports from `@arex95/phalanx`. There is no default export.
 
 ## Plugin
 
-| Export | |
-|---|---|
-| `Phalanx` | the Vue plugin — `app.use(Phalanx, options)` |
-| `PhalanxOptions` | its options type |
+```ts
+app.use(Phalanx, options: PhalanxOptions)
+```
 
-## REST
+See [Configuration](/guide/configuration).
 
-| Export | |
+## Services
+
+```ts
+class RestStd {
+    static resource: string;
+    static headers: Record<string, string>;
+    static fetchFn?: Fetcher;
+    static retryConfig?: RetryConfig;
+    static setHeaders(headers: Record<string, string>): void;
+
+    static getAll<TResponse, TParams, TData>(options?: GetAllOptions): Promise<TResponse>;
+    static getOne<TResponse, TParams>(options: GetOneOptions): Promise<TResponse>;
+    static create<TResponse, TData>(options: CreateOptions<TData>): Promise<TResponse>;
+    static update<TResponse, TData>(options: UpdateOptions<TData>): Promise<TResponse>;
+    static patch<TResponse, TData>(options: PatchOptions<TData>): Promise<TResponse>;
+    static delete<TResponse>(options: DeleteOptions): Promise<TResponse>;
+    static bulkCreate<TResponse, TData>(options: BulkCreateOptions<TData>): Promise<TResponse>;
+    static bulkUpdate<TResponse, TData>(options: BulkUpdateOptions<TData>): Promise<TResponse>;
+    static bulkDelete<TResponse>(options: BulkDeleteOptions): Promise<TResponse>;
+    static upsert<TResponse, TData>(options: UpsertOptions<TData>): Promise<TResponse>;
+    static customRequest<TResponse, TParams, TData>(options: CustomRequestOptions): Promise<TResponse>;
+}
+```
+
+| Also exported | |
 |---|---|
-| `RestStd` | base class for services |
-| `AxiosService` | the axios wrapper the default transport is built on |
-| `createAxiosFetcher(instance)` | adapts an axios instance to the `Fetcher` contract |
+| `AxiosService` | the axios wrapper behind the default transport |
+| `createAxiosFetcher(instance)` | adapts an axios instance to `Fetcher` |
 | `getConfiguredAxiosInstance()` | the instance the plugin configured |
-| `objectToFormData(obj)` | used internally for multipart writes |
+| `objectToFormData(obj, form?, ns?)` | builds `FormData` from a plain object |
 | `toJsonApi(payload)` | JSON:API envelope helper |
-| `retryWithBackoff(fn, config)` | the retry primitive services use |
+| `retryWithBackoff(fn, config?)` | the retry primitive |
 
 ## Composables
 
-| Export | |
-|---|---|
-| `createDomainQueries(config)` | TanStack queries derived from a service |
-| `createDomainMutations(config)` | TanStack mutations derived from a service |
-| `useAuth(fetcher?)` | `{ login, logout }` |
+```ts
+createDomainQueries({ service, keys, module?, model? })
+createDomainMutations({ service, keys, module?, model?, invalidate?, actions?,
+                        extraInvalidateKeys?, ...ActionInjection })
+useAuth(fetcher?): { login, logout }
+```
+
+See [Queries](/guide/queries), [Mutations](/guide/mutations),
+[Authentication](/guide/authentication).
 
 ## Actions
 
-| Export | |
-|---|---|
-| `defineAction(fn, meta)` | attaches `ActionMeta` to a service method |
-| `withActionBehaviour(...)` | the wrapper the mutations apply; exported for custom layers |
-| `ActionCancelledError` | rejection reason when a confirmation is declined |
-| `defaultNotify`, `defaultRequestConfirmation` | bare `window` implementations, for prototyping only |
+```ts
+defineAction<TFn>(fn: TFn, meta: ActionMeta): TFn & { meta: ActionMeta }
+withActionBehaviour(...)          // the wrapper the mutations apply
+class ActionCancelledError extends Error
+defaultNotify, defaultRequestConfirmation
+```
+
+See [Actions](/guide/actions).
 
 ## Session
 
-| Export | |
+| Export | Signature |
 |---|---|
 | `accessToken` | `ComputedRef<string \| null>` |
-| `isAuthenticated` | `ComputedRef<boolean>` — presence, not validity |
-| `getAccessToken()` / `setAccessToken(t)` | imperative access |
-| `verifyAuth()` | synchronous; decodes `exp` and clears an invalid token |
-| `refreshTokens()` | forces a refresh; normally the interceptor calls it |
+| `isAuthenticated` | `ComputedRef<boolean>` |
+| `getAccessToken()` | `() => string \| null` |
+| `setAccessToken(token)` | `(token: string \| null) => void` |
+| `verifyAuth()` | `() => boolean` |
+| `refreshTokens(fetcher?)` | `(fetcher?: Fetcher) => Promise<void>` |
 | `extractAccessToken(response, paths)` | dot-path extraction |
 
 ## Configuration
 
-`configEndpoints`, `configTokenPaths`, `configRefreshTokenPaths`, `configCsrf`,
-`configEncryption`, `configAxios`, `configCallbacks`, `configAuthFetcher`,
-`setDefaultAuthFetcherFactory`.
+```ts
+configEndpoints, configTokenPaths, configRefreshTokenPaths, configCsrf,
+configEncryption, configAxios, configCallbacks, configAuthFetcher,
+setDefaultAuthFetcherFactory
 
-Matching getters: `getEndpointsConfig`, `getTokenPathsConfig`,
-`getRefreshTokenPathsConfig`, `getCsrfConfig`, `getEncryptionPublicKeyPem`,
-`getCallbacksConfig`, `getDefaultAuthFetcher`.
+getEndpointsConfig, getTokenPathsConfig, getRefreshTokenPathsConfig,
+getCsrfConfig, getEncryptionPublicKeyPem, getCallbacksConfig,
+getDefaultAuthFetcher
+```
 
 ## Errors
 
-| Export | |
-|---|---|
-| `BaseError` | the root of the hierarchy; carries `context` |
-| `NetworkError`, `AuthError`, `ValidationError`, `ServerError` | typed subclasses |
-| `normalizeHttpError(error)` | turns any transport error into one of the above |
+```ts
+class BaseError extends Error { code: string; statusCode?: number; context?: object }
+class NetworkError    extends BaseError
+class AuthError       extends BaseError
+class ValidationError extends BaseError { issues: ValidationIssue[] }
+class ServerError     extends BaseError
 
-`context` preserves the response body, the status and the **response headers** —
-so error codes carried in a header survive normalisation.
+normalizeHttpError(error: unknown): unknown
+```
+
+See [Error handling](/guide/errors).
 
 ## Crypto
 
 | Export | |
 |---|---|
-| `encryptField(value)` | hybrid AES-GCM + RSA-OAEP envelope |
-| `encrypt`, `decrypt` | symmetric helpers |
+| `encryptField(value)` | `Promise<EncryptedField>` — AES-GCM + RSA-OAEP |
+| `encrypt(text, key)` · `decrypt(cipher, key)` | symmetric helpers |
 | `importKey`, `getWebCrypto`, `ab2hex`, `hex2ab` | Web Crypto plumbing |
 | `storeEncryptedItem`, `getDecryptedItem` | encrypted storage helpers |
 
 ::: warning
-`storeEncryptedItem` and `getDecryptedItem` are **not** for session tokens. A
-key the browser can use is a key an attacker in the page can use. See
-[Session handling](/concepts/session).
+`storeEncryptedItem` and `getDecryptedItem` are general-purpose helpers, not a
+place for session tokens — the key they use is available to any script in the
+page. See [Session handling](/concepts/session).
 :::
 
 ## Utilities
 
-`isServer`, `isClient`, `getStorage`, `getSessionStorage`, `getCookieStorage`,
-`getPreferredStorage`, `safeGet`, `identityTranslate`, `ContentTypeEnum`.
+```ts
+isServer, isClient
+getStorage, getSessionStorage, getCookieStorage, getPreferredStorage
+safeGet, identityTranslate, ContentTypeEnum
+```
 
 ## Types
 
-`PhalanxOptions`, `ActionMeta`, `ActionInjection`, `ConfirmationRequest`,
-`NotifyRequest`, `Fetcher`, `FetcherConfig`, `RestStdService`,
-`EncryptedField`, `EncryptionConfig`, `CsrfConfig`, `RetryConfig`,
-`BaseModelKeys`, `CrudMethodName`, `CrudActions`, `InvalidateEntry`.
+```
+PhalanxOptions · AxiosServiceOptions · Fetcher · FetcherConfig · RestStdService
+ActionMeta · ActionInjection · ConfirmationRequest · NotifyRequest
+GetAllOptions · GetOneOptions · CreateOptions · UpdateOptions · PatchOptions
+DeleteOptions · BulkCreateOptions · BulkUpdateOptions · BulkDeleteOptions
+UpsertOptions · CustomRequestOptions
+BaseModelKeys · CrudMethodName · CrudActions · InvalidateEntry
+EncryptedField · EncryptionConfig · CsrfConfig · RetryConfig · ValidationIssue
+CookieOptions · AuthTokenPaths · AuthResponse · EndpointsConfig
+```

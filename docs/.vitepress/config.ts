@@ -32,9 +32,11 @@ export default defineConfig({
                     { text: 'Getting started', link: '/guide/getting-started' },
                     { text: 'Configuration', link: '/guide/configuration' },
                     { text: 'Services', link: '/guide/services' },
-                    { text: 'Queries and mutations', link: '/guide/queries-and-mutations' },
+                    { text: 'Queries', link: '/guide/queries' },
+                    { text: 'Mutations', link: '/guide/mutations' },
                     { text: 'Actions', link: '/guide/actions' },
                     { text: 'Authentication', link: '/guide/authentication' },
+                    { text: 'Error handling', link: '/guide/errors' },
                     { text: 'Field encryption', link: '/guide/field-encryption' }
                 ]
             },
@@ -48,7 +50,10 @@ export default defineConfig({
             },
             {
                 text: 'Reference',
-                items: [{ text: 'Public API', link: '/reference/api' }]
+                items: [
+                    { text: 'API reference', link: '/reference/api' },
+                    { text: 'Migrating from vue-core', link: '/reference/migration' }
+                ]
             }
         ],
 

@@ -1,9 +1,8 @@
 # Field encryption
 
-`encryptField` encrypts a value in the browser so that only the backend can
-read it. It is for outbound user data — a document number, a medical note, a
-bank reference — that should not be readable in transit logs, proxies or a
-database dump.
+`encryptField` encrypts a value in the browser so that only the holder of the
+private key can read it — a document number, a medical note, a bank reference
+that should not appear in transit logs, proxies or a database dump.
 
 ::: tip
 The client only ever holds the public key, because it never needs to read the
@@ -44,33 +43,23 @@ interface EncryptedField {
 }
 ```
 
-## How it works, and why it is hybrid
+## Scheme
 
-A fresh **AES-256-GCM** key is generated for every call, used once to encrypt
-the value, then wrapped with your **RSA-OAEP** public key and thrown away.
+A fresh AES-256-GCM key per call encrypts the value; the key is wrapped with the
+RSA-OAEP public key and discarded. RSA-OAEP with a 2048-bit key carries about
+190 bytes, so the envelope keeps the payload off the asymmetric side. GCM is
+authenticated, so a tampered ciphertext fails to decrypt rather than decrypting
+to garbage.
 
-RSA cannot encrypt arbitrary-length data — with a 2048-bit key and OAEP padding
-the ceiling is 190 bytes, so a two-line address would fail. Encrypting the data
-symmetrically and the *key* asymmetrically is the standard answer, and it is
-what your database's own field-level encryption does.
-
-GCM is authenticated: a tampered ciphertext fails to decrypt rather than
-decrypting to garbage.
-
-## What the backend does
+## Decrypting
 
 Unwrap `encryptedKey` with the RSA private key, then decrypt `ciphertext` with
-the resulting AES key and `iv`. Every mainstream language has this in its
-standard library.
+the resulting AES key and `iv`. Both primitives are in the standard library of
+every mainstream runtime.
 
-## What this does not protect against
+## Scope
 
-- **A compromised frontend.** Script running in your page can read the value
-  before it is encrypted. This protects data *in transit and at rest*, not from
-  XSS.
-- **The backend.** It holds the private key.
-- **Traffic analysis.** Sizes and timing are unchanged.
-
-It is not a substitute for TLS. It is a second envelope inside it, so that the
-value is not readable by anything between the browser and the code holding the
-private key.
+The value is protected between the browser and the holder of the private key.
+It is not protected from script running in the page, which sees it before
+encryption, and sizes and timing are unchanged. This sits inside TLS rather than
+replacing it.

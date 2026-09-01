@@ -1,6 +1,6 @@
 # Services
 
-A service is a class extending `RestStd`. Members are static: there is nothing
+A service is a class extending `RestStd`. Members are static — there is nothing
 to instantiate and no per-instance state.
 
 ```ts
@@ -11,10 +11,7 @@ export class UserService extends RestStd {
 }
 ```
 
-`resource` is required. Every method throws a clear error if it is missing,
-rather than issuing a request to `undefined`.
-
-## The inherited methods
+## Inherited methods
 
 | Method | Request |
 |---|---|
@@ -27,44 +24,102 @@ rather than issuing a request to `undefined`.
 | `bulkCreate({ data })` | `POST /users/bulk` |
 | `bulkUpdate({ data })` | `PUT /users/bulk` |
 | `bulkDelete({ ids })` | `DELETE /users/bulk` |
-| `upsert({ id, data })` | `POST` when `id` is `null`, `PUT` otherwise |
+| `upsert({ data })` | `POST` or `PUT`, see below |
 | `customRequest({ method, url, … })` | anything else |
 
-`customRequest` is the exception to the pattern: it takes a **full `url`** and
-does not prefix it with `resource`. Build the path yourself, as the examples
-below do.
+Every method is `async` and rejects with a [typed error](/guide/errors).
 
-All of them are `async`. Errors — including argument validation — arrive as a
-rejected promise, so a single `try`/`catch` around an `await` covers them.
+Each accepts an optional `url` to override the resource path for that call, and
+read methods accept `params` for the query string.
+
+```ts
+await UserService.getAll({ params: { page: 1, status: 'active' } });
+await UserService.getOne({ id: '7', params: { include: 'roles' } });
+```
 
 ### `upsert`
 
-`id: null` means "create"; any other value means "update". An empty string is
-a legitimate id and is treated as one — it is not the same as `null`.
+Dispatches on `data.id`: `null` or `undefined` creates, anything else updates.
+`0` and `''` are treated as identifiers.
 
-## Class-level configuration
+```ts
+await UserService.upsert({ data: { id: null, name: 'Ada' } });   // POST
+await UserService.upsert({ data: { id: '7', name: 'Ada' } });    // PUT /users/7
+```
+
+### `customRequest`
+
+Takes a complete `url` and does not prefix `resource`.
+
+```ts
+static exportCsv(range: { from: string; to: string }) {
+    return this.customRequest<Blob>({
+        method: 'GET',
+        url: `${this.resource}/export`,
+        params: range
+    });
+}
+```
+
+## Request bodies
+
+The body type is detected from the value:
+
+| Value | `Content-Type` |
+|---|---|
+| `FormData`, `Blob`, `ArrayBuffer` | not set — the client adds the multipart boundary |
+| anything else | `application/json` |
+
+```ts
+const form = new FormData();
+form.append('avatar', file);
+await UserService.patch({ id: '7', data: form });
+```
+
+`objectToFormData(obj)` is exported for building one from a plain object; it
+walks nested objects and arrays and skips `null` and `undefined`.
+
+## Static configuration
 
 ```ts
 export class UserService extends RestStd {
     static resource = 'users';
     static headers = { 'X-Tenant': 'acme' };
-    static retryConfig = { retries: 3, retryDelay: 1000, maxRetryDelay: 10000 };
-    static fetchFn = myFetcher;
+    static retryConfig = { retries: 3, retryDelay: 1000, maxRetryDelay: 10_000 };
+    static fetchFn = createAxiosFetcher(anotherAxiosInstance);
 }
 ```
 
-- `headers` are merged into every request the class issues.
-- `retryConfig` applies exponential backoff, capped at `maxRetryDelay`. It
-  retries only network errors and server errors — 5xx, 408 and 429 — never a
-  4xx you caused. There is no jitter, so a fleet of tabs recovering from the
-  same outage will retry in step.
-- `fetchFn` replaces the transport for this service only.
+| Member | Effect |
+|---|---|
+| `resource` | base path — required |
+| `headers` | merged into every request from this class |
+| `retryConfig` | retry with exponential backoff |
+| `fetchFn` | replaces the transport for this class |
 
-`setHeaders()` overrides them at runtime.
+`setHeaders(headers)` replaces `headers` at runtime, for values known only after
+login.
+
+### Retries
+
+```ts
+interface RetryConfig {
+    retries?: number;              // 3
+    retryDelay?: number;           // 1000 ms
+    maxRetryDelay?: number;        // 10000 ms
+    backoffMultiplier?: number;    // 2
+    retryCondition?: (error: unknown) => boolean;
+}
+```
+
+The default condition retries network errors and responses with status 408, 429
+or ≥ 500. Delays are not jittered, so many clients recovering from one outage
+retry in step; pass `retryCondition` or your own delays if that matters.
 
 ## Custom methods
 
-Anything that is not CRUD goes on the service as a static method:
+Anything that is not CRUD is a static method on the service. These appear on the
+generated queries and mutations with their inferred types.
 
 ```ts
 export class UserService extends RestStd {
@@ -73,34 +128,35 @@ export class UserService extends RestStd {
     static suspend(id: string) {
         return this.customRequest<User>({
             method: 'POST',
-            url: `${this.resource}/${id}/suspend`
-        });
-    }
-
-    static exportCsv(params: { from: string; to: string }) {
-        return this.customRequest<Blob>({
-            method: 'GET',
-            url: `${this.resource}/export`,
-            params
+            url: `users/${id}/suspend`
         });
     }
 }
 ```
 
-These are what `createDomainQueries` and `createDomainMutations` pick up
-automatically, with their types intact.
+::: tip
+A method that will be used as a mutation takes at most one parameter — the
+generated signature cannot express more. Pass an object.
+:::
 
-## Bringing your own fetcher
+## Replacing the transport
 
-The transport is a contract, not a dependency:
+The transport is a single function:
 
 ```ts
 type Fetcher = (config: FetcherConfig) => Promise<unknown>;
+
+interface FetcherConfig {
+    method: string;
+    url: string;
+    params?: Record<string, unknown>;
+    data?: unknown;
+    headers?: Record<string, string>;
+}
 ```
 
-Axios is the built-in implementation and the default. Anything else — `ofetch`,
-native `fetch`, a mock in tests — is a function of that shape, written in your
-project. Phalanx does not depend on it and does not ship it:
+`createAxiosFetcher` is the built-in implementation. Any other client is an
+adapter written in your project:
 
 ```ts
 import { configAuthFetcher, type Fetcher } from '@arex95/phalanx';
@@ -114,5 +170,6 @@ const ofetchFetcher: Fetcher = (config) =>
         headers: config.headers
     });
 
-configAuthFetcher(ofetchFetcher);
+configAuthFetcher(ofetchFetcher);          // login, refresh, logout
+UserService.fetchFn = ofetchFetcher;       // one service
 ```

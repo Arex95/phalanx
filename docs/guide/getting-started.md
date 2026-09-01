@@ -1,27 +1,24 @@
 # Getting started
 
-Phalanx is a foundation, not a UI kit. It ships no components and no styles: it
-decides how an admin panel talks to a REST API, how it authenticates, and how
-non-CRUD operations are declared. What the screen looks like stays yours.
+Phalanx provides the data layer of an admin panel: services over a REST API,
+TanStack Query composables derived from them, session handling, and metadata for
+operations that are not CRUD. It ships no components and no styles.
 
-## Requirements
-
-| Peer dependency | Version | Why |
-|---|---|---|
-| `vue` | `>=3.0.0` | reactivity and the plugin |
-| `axios` | `>=1.6.0` | the default HTTP client and its interceptors |
-| `@tanstack/vue-query` | `>=5.0.0` | query and mutation state |
-| `jwt-decode` | `^4.0.0` | reading `exp` from the access token |
-
-Node 15 or newer is required to build against it — the source uses
-`String.prototype.replaceAll`.
-
-## Install
+## Installation
 
 ```bash
 pnpm add @arex95/phalanx
 pnpm add vue axios @tanstack/vue-query jwt-decode
 ```
+
+| Peer dependency | Version | Used for |
+|---|---|---|
+| `vue` | `>=3.0.0` | reactivity, the plugin |
+| `axios` | `>=1.6.0` | the default transport and its interceptors |
+| `@tanstack/vue-query` | `>=5.0.0` | query and mutation state |
+| `jwt-decode` | `^4.0.0` | reading `exp` from the access token |
+
+ESM only. Node 15 or newer to build against it.
 
 ## Register the plugin
 
@@ -49,12 +46,12 @@ createApp(App)
     .mount('#app');
 ```
 
-`withCredentials: true` is not optional if your API lives on another origin.
-Without it the browser will not send the refresh cookie, and it will not tell
-you why — the request simply arrives unauthenticated. See
-[Server requirements](/concepts/server-requirements).
+`withCredentials: true` lets the browser send the refresh cookie when the API is
+on another origin. See [Configuration](/guide/configuration) for the full option
+set and [Server requirements](/concepts/server-requirements) for the responses
+the API returns.
 
-## Declare a service
+## Define a service
 
 ```ts
 import { RestStd } from '@arex95/phalanx';
@@ -63,14 +60,17 @@ export class UserService extends RestStd {
     static resource = 'users';
 
     static suspend(id: string) {
-        return this.customRequest({ method: 'POST', url: `users/${id}/suspend` });
+        return this.customRequest<User>({
+            method: 'POST',
+            url: `users/${id}/suspend`
+        });
     }
 }
 ```
 
-`resource` is the only required piece. The nine CRUD methods —
-`getAll`, `getOne`, `create`, `update`, `patch`, `delete`, `bulkCreate`,
-`bulkUpdate`, `bulkDelete`, plus `upsert` and `customRequest` — are inherited.
+`resource` is the only required member. Eleven methods are inherited: `getAll`,
+`getOne`, `create`, `update`, `patch`, `delete`, `bulkCreate`, `bulkUpdate`,
+`bulkDelete`, `upsert` and `customRequest`.
 
 ## Derive the composables
 
@@ -84,23 +84,36 @@ export const userQueries = createDomainQueries({ service: UserService, keys });
 export const userMutations = createDomainMutations({ service: UserService, keys });
 ```
 
-`suspend` is now available as `userQueries.suspend` and
-`userMutations.suspend`, with its argument and return types inferred from the
-service method. You did not declare it twice.
+Both objects expose the CRUD operations and every custom method defined on the
+service. `suspend` becomes `userQueries.suspend` and `userMutations.suspend`,
+typed from the method signature.
 
-## Use them in a view
+## Use them
 
 ```vue
 <script setup lang="ts">
 import { userQueries, userMutations } from '@/domain/users';
 
-const { data, isLoading } = userQueries.getAll();
-const { mutate: create } = userMutations.create;
+const { data, isPending, error } = userQueries.getAll();
+const { mutate: createUser } = userMutations.create;
 </script>
+
+<template>
+  <p v-if="isPending">Loading…</p>
+  <p v-else-if="error">{{ error.message }}</p>
+  <ul v-else>
+    <li v-for="user in data.items" :key="user.id">{{ user.name }}</li>
+  </ul>
+</template>
 ```
 
-## Next
+`getAll` resolves to `{ items, meta, total }`.
 
-- [Configuration](/guide/configuration) — every option the plugin takes.
-- [Actions](/guide/actions) — permissions, confirmation and invalidation as data.
-- [Server requirements](/concepts/server-requirements) — what the API must do for auth to work.
+## Next steps
+
+| | |
+|---|---|
+| [Services](/guide/services) | the `RestStd` surface and custom methods |
+| [Queries](/guide/queries) · [Mutations](/guide/mutations) | the generated composables |
+| [Actions](/guide/actions) | permissions, confirmation and invalidation |
+| [Error handling](/guide/errors) | the typed error hierarchy |

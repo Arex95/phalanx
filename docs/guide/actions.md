@@ -1,14 +1,9 @@
 # Actions
 
-CRUD is the easy part of an admin panel. The part that is not CRUD — suspend a
-user, approve a request, close a period — carries the same four concerns every
-time: is this person allowed, do we ask first, what do we tell them afterwards,
-and what does the cache need to forget.
-
-Rebuilt by hand in every view, those four drift. `defineAction` declares them
-as data, attached to the operation itself.
-
-## Declaring
+An operation that is not CRUD usually carries four concerns beyond the request
+itself: whether the user may perform it, whether to confirm first, what to
+report afterwards, and what the cache must forget. `defineAction` attaches them
+to the service method as metadata.
 
 ```ts
 import { RestStd, defineAction } from '@arex95/phalanx';
@@ -33,47 +28,7 @@ export class UserService extends RestStd {
 }
 ```
 
-### `ActionMeta`
-
-| Field | Effect |
-|---|---|
-| `permission` | checked through `checkPermission`; drives `isAuthorized` |
-| `requiresConfirmation` | routes the call through `requestConfirmation` first |
-| `confirmMessageKey`, `confirmHeaderKey` | resolved through `translate` |
-| `confirmOptions` | passed to the confirmation handler untouched |
-| `successMessageKey`, `errorMessageKey` | resolved and sent to `notify` |
-| `notifyOptions` | passed to the notify handler untouched |
-| `invalidate` | `string[]` to add, or `{ only: [...] }` to replace |
-
-## Wiring the host application
-
-Phalanx does not own your dialog, your toast or your permission system. You
-inject four functions, once, where the mutations are created:
-
-```ts
-const userMutations = createDomainMutations({
-    service: UserService,
-    keys: { all: 'users', one: 'user' },
-
-    checkPermission: (p) => auth.can(p),
-    translate: (k) => i18n.t(k),
-    requestConfirmation: (request, onAccept, onReject) =>
-        confirm.require({
-            message: request.message,
-            header: request.header,
-            accept: onAccept,
-            reject: onReject
-        }),
-    notify: ({ severity, message }) => toast.add({ severity, detail: message })
-});
-```
-
-Leave any of them out and that concern is skipped — no permission check, no
-dialog, no toast. Nothing throws. The library ships `defaultNotify` and
-`defaultRequestConfirmation` as bare `window` implementations for prototyping;
-they are not meant for production.
-
-## Using
+The generated mutation applies them:
 
 ```vue
 <script setup lang="ts">
@@ -87,42 +42,91 @@ const { suspend } = userMutations;
 </template>
 ```
 
-`isAuthorized` is a `ComputedRef<boolean>` that only exists on operations that
-declared a `permission`. On anything else the property is not in the type at
-all — the discrimination is at compile time, not a runtime `undefined`.
+## `ActionMeta`
 
-## Escape hatches
+| Field | Type | Effect |
+|---|---|---|
+| `permission` | `string` | passed to `checkPermission`; drives `isAuthorized` |
+| `requiresConfirmation` | `boolean` | routes the call through `requestConfirmation` |
+| `confirmMessageKey` · `confirmHeaderKey` | `string` | resolved through `translate` |
+| `confirmOptions` | `object` | forwarded to the confirmation handler |
+| `successMessageKey` · `errorMessageKey` | `string` | resolved and passed to `notify` |
+| `notifyOptions` | `object` | forwarded to the notify handler |
+| `invalidate` | `string[]` \| `{ only: string[] }` | cache keys to invalidate |
 
-Sometimes the confirmation has already happened — a bulk screen that asked once
-for forty rows should not ask forty times:
+## Wiring the host application
+
+Phalanx does not own the dialog, the toast or the permission system. Provide
+four functions where the mutations are created:
 
 ```ts
-suspend.mutateWithoutConfirmation(id);
-await suspend.mutateAsyncWithoutConfirmation(id);
+const userMutations = createDomainMutations({
+    service: UserService,
+    keys: { all: 'users', one: 'user' },
+
+    checkPermission: (permission) => auth.can(permission),
+    translate: (key) => i18n.t(key),
+    requestConfirmation: (request, onAccept, onReject) =>
+        confirm.require({
+            message: request.message,
+            header: request.header,
+            accept: onAccept,
+            reject: onReject
+        }),
+    notify: ({ severity, message }) => toast.add({ severity, detail: message })
+});
 ```
 
-Both skip only the dialog. The permission check, the notification and the
-invalidation still run.
+```ts
+interface ActionInjection {
+    checkPermission?: (permission: string) => boolean;
+    requestConfirmation?: (
+        request: ConfirmationRequest,
+        onAccept: () => void,
+        onReject?: () => void
+    ) => void;
+    translate?: (key: string) => string;
+    notify?: (request: NotifyRequest) => void;
+}
+```
 
-## When the user declines
+Any omitted function disables that concern for every action in the object.
+`defaultNotify` and `defaultRequestConfirmation` are exported as `window`-based
+implementations for prototyping.
 
-- `mutate` returns `void` and does nothing.
-- `mutateAsync` rejects with `ActionCancelledError`, so the `await` settles.
+## Cancellation
 
 ```ts
 import { ActionCancelledError } from '@arex95/phalanx';
 
 try {
     await suspend.mutateAsync(id);
-} catch (e) {
-    if (e instanceof ActionCancelledError) return; // the user said no
-    throw e;
+} catch (error) {
+    if (error instanceof ActionCancelledError) return;
+    throw error;
 }
 ```
 
-## CRUD operations get this too
+- `mutate` returns `void` and does nothing when the confirmation is declined.
+- `mutateAsync` rejects with `ActionCancelledError`, so the `await` settles.
 
-The same behaviour attaches to `create`, `update`, `patch` and `remove`:
+## Skipping the confirmation
+
+For a screen that has already asked once — a bulk operation over selected rows:
+
+```ts
+for (const id of selected.value) {
+    await suspend.mutateAsyncWithoutConfirmation(id);
+}
+```
+
+`mutateWithoutConfirmation` and `mutateAsyncWithoutConfirmation` skip the dialog
+only. The permission check, the notification and the invalidation still run.
+
+## CRUD operations
+
+The same metadata applies to `create`, `update`, `patch` and `remove` through
+`actions`:
 
 ```ts
 createDomainMutations({
@@ -138,5 +142,6 @@ createDomainMutations({
 });
 ```
 
-Only the methods listed in `actions` gain `isAuthorized` and the
-`…WithoutConfirmation` pair. The others do not have them in their type.
+`isAuthorized` and the `…WithoutConfirmation` pair exist only on the methods
+listed in `actions`. On the others they are absent from the type, so a call site
+that assumes them does not compile.
