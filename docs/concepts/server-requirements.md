@@ -29,7 +29,7 @@ If the response also returns the refresh token in the body, Phalanx ignores it.
 ## 2 · The refresh endpoint
 
 `POST /auth/refresh` arrives with an empty body. Read the token from the cookie
-and return a new access token, shaped however `refreshTokenPaths` describes:
+and return a new access token, shaped however `refreshResponsePaths` describes:
 
 ```json
 { "data": { "access_token": "eyJ…" } }

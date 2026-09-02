@@ -37,7 +37,6 @@ createApp(App)
             logout: '/auth/logout'
         },
         tokenPaths: { accessToken: 'data.access_token' },
-        refreshTokenPaths: { accessToken: 'data.access_token' },
         axios: {
             baseURL: import.meta.env.VITE_API_URL,
             withCredentials: true

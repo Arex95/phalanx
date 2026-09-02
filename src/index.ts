@@ -4,7 +4,7 @@ import {
   configEndpoints,
   configAxios,
   configTokenPaths,
-  configRefreshTokenPaths,
+  configRefreshResponsePaths,
   configCsrf,
   configEncryption,
   configCallbacks,
@@ -14,7 +14,7 @@ import {
  * Vue plugin entry point for `@arex95/phalanx`.
  *
  * Initializes the global configuration singletons in a deterministic order:
- * endpoints → tokenPaths → refreshTokenPaths → csrf → encryption → axios →
+ * endpoints → tokenPaths → refreshResponsePaths → csrf → encryption → axios →
  * callbacks. No `appKey`/`tokenKeys` step anymore — nothing about tokens is
  * stored client-side (see `services/accessToken.ts`).
  */
@@ -32,8 +32,9 @@ export const Phalanx = {
     configTokenPaths({
       accessTokenPath: options.tokenPaths.accessToken,
     });
-    configRefreshTokenPaths({
-      accessTokenPath: options.refreshTokenPaths.accessToken,
+    configRefreshResponsePaths({
+      accessTokenPath:
+        options.refreshResponsePaths?.accessToken ?? options.tokenPaths.accessToken,
     });
     if (options.csrf) {
       configCsrf(options.csrf);

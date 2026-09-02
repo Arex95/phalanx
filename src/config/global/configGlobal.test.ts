@@ -3,9 +3,9 @@ import { configCallbacks, getCallbacksConfig } from './callbacksConfig';
 import { configCsrf, getCsrfConfig } from './csrfConfig';
 import { configEndpoints, getEndpointsConfig } from './endpointsConfig';
 import {
-    configRefreshTokenPaths,
+    configRefreshResponsePaths,
     configTokenPaths,
-    getRefreshTokenPathsConfig,
+    getRefreshResponsePathsConfig,
     getTokenPathsConfig
 } from './tokenPathsConfig';
 
@@ -78,16 +78,16 @@ describe('endpointsConfig', () => {
 describe('tokenPathsConfig', () => {
     it('defaults to data.access_token for both login and refresh paths', () => {
         configTokenPaths({});
-        configRefreshTokenPaths({});
+        configRefreshResponsePaths({});
         expect(getTokenPathsConfig()).toEqual({ accessTokenPath: 'data.access_token' });
-        expect(getRefreshTokenPathsConfig()).toEqual({ accessTokenPath: 'data.access_token' });
+        expect(getRefreshResponsePathsConfig()).toEqual({ accessTokenPath: 'data.access_token' });
     });
 
     it('accepts a custom accessTokenPath for login, independent of refresh', () => {
         configTokenPaths({ accessTokenPath: 'data.token.access' });
-        configRefreshTokenPaths({ accessTokenPath: 'data.access_token' });
+        configRefreshResponsePaths({ accessTokenPath: 'data.access_token' });
         expect(getTokenPathsConfig().accessTokenPath).toBe('data.token.access');
-        expect(getRefreshTokenPathsConfig().accessTokenPath).toBe('data.access_token');
+        expect(getRefreshResponsePathsConfig().accessTokenPath).toBe('data.access_token');
     });
 
     it('falls back to the default when passed an empty string path', () => {

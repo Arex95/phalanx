@@ -35,7 +35,7 @@ and the refresh token is expected in a cookie set by the server.
    endpoints: { login: '/auth/login', refresh: '/auth/refresh', logout: '/auth/logout' },
 -  tokenKeys: { accessToken: 'access_token', refreshToken: 'refresh_token' },
    tokenPaths: { accessToken: 'data.access_token' },
-   refreshTokenPaths: { accessToken: 'data.access_token' },
+   refreshResponsePaths: { accessToken: 'data.access_token' },
 -  refreshTokenBodyKey: 'refresh_token',
 -  axios: { baseURL },
 +  axios: { baseURL, withCredentials: true },

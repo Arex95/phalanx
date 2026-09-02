@@ -81,11 +81,11 @@ See [Actions](/guide/actions).
 ## Configuration
 
 ```ts
-configEndpoints, configTokenPaths, configRefreshTokenPaths, configCsrf,
+configEndpoints, configTokenPaths, configRefreshResponsePaths, configCsrf,
 configEncryption, configAxios, configCallbacks, configAuthFetcher,
 setDefaultAuthFetcherFactory
 
-getEndpointsConfig, getTokenPathsConfig, getRefreshTokenPathsConfig,
+getEndpointsConfig, getTokenPathsConfig, getRefreshResponsePathsConfig,
 getCsrfConfig, getEncryptionPublicKeyPem, getCallbacksConfig,
 getDefaultAuthFetcher
 ```

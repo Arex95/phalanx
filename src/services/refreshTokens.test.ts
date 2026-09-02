@@ -2,14 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { refreshTokens } from './refreshTokens';
 import { getAccessToken, setAccessToken } from './accessToken';
 import { configEndpoints } from '@config/global/endpointsConfig';
-import { configRefreshTokenPaths } from '@config/global/tokenPathsConfig';
+import { configRefreshResponsePaths } from '@config/global/tokenPathsConfig';
 import { configCallbacks } from '@config/global/callbacksConfig';
 import type { Fetcher, FetcherConfig } from '@/types';
 
 beforeEach(() => {
     setAccessToken(null);
     configEndpoints({ loginEndpoint: '/login', refreshEndpoint: '/refresh', logoutEndpoint: '/logout' });
-    configRefreshTokenPaths({ accessTokenPath: 'data.access_token' });
+    configRefreshResponsePaths({ accessTokenPath: 'data.access_token' });
     configCallbacks({});
 });
 

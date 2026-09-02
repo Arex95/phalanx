@@ -1,5 +1,5 @@
 import { getEndpointsConfig } from '@config/global/endpointsConfig';
-import { getRefreshTokenPathsConfig } from '@config/global/tokenPathsConfig';
+import { getRefreshResponsePathsConfig } from '@config/global/tokenPathsConfig';
 import { getCallbacksConfig } from '@config/global/callbacksConfig';
 import { AuthResponse, AuthTokenPaths, Fetcher } from '@/types';
 import { extractAccessToken } from '@services/extractTokens';
@@ -20,7 +20,7 @@ import { getDefaultAuthFetcher } from '@/config/auth/authFetcher';
  * if configured, and rethrows so callers can react.
  */
 export const refreshTokens = async (fetcher?: Fetcher): Promise<AuthResponse> => {
-  const tokenPaths: AuthTokenPaths = getRefreshTokenPathsConfig();
+  const tokenPaths: AuthTokenPaths = getRefreshResponsePathsConfig();
   const endpoints = getEndpointsConfig();
   const getFetcher = (): Fetcher => fetcher ?? getDefaultAuthFetcher();
 

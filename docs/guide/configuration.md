@@ -6,7 +6,7 @@ All configuration is passed to `app.use(Phalanx, options)`.
 interface PhalanxOptions {
     endpoints:          { login: string; refresh: string; logout: string };
     tokenPaths:         { accessToken: string };
-    refreshTokenPaths:  { accessToken: string };
+    refreshResponsePaths:  { accessToken: string };
     axios:              AxiosServiceOptions;
     csrf?:              { headerName: string; cookieName: string };
     encryption?:        { publicKeyPem: string };
@@ -19,13 +19,13 @@ interface PhalanxOptions {
 
 The three authentication routes, resolved against the axios `baseURL`.
 
-## `tokenPaths` · `refreshTokenPaths`
+## `tokenPaths` · `refreshResponsePaths`
 
 Dot-notation paths to the access token in each response body.
 
 ```ts
 tokenPaths:        { accessToken: 'data.access_token' },  // POST /auth/login
-refreshTokenPaths: { accessToken: 'access_token' }        // POST /auth/refresh
+refreshResponsePaths: { accessToken: 'access_token' }        // POST /auth/refresh
 ```
 
 They are separate because login and refresh responses often differ in shape.
@@ -90,7 +90,7 @@ component.
 | Getter | Returns before the plugin is installed |
 |---|---|
 | `getEndpointsConfig()` | the defaults `/login`, `/refresh`, `/logout` |
-| `getTokenPathsConfig()` · `getRefreshTokenPathsConfig()` | `{ accessTokenPath: 'data.access_token' }` |
+| `getTokenPathsConfig()` · `getRefreshResponsePathsConfig()` | `{ accessTokenPath: 'data.access_token' }` |
 | `getCsrfConfig()` | `null` |
 | `getCallbacksConfig()` | `{}` |
 | `getEncryptionPublicKeyPem()` | throws |

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AxiosError, AxiosHeaders, type AxiosAdapter, type InternalAxiosRequestConfig } from 'axios';
 import { AxiosService } from './axiosConfig';
 import { configEndpoints } from '@config/global/endpointsConfig';
-import { configTokenPaths, configRefreshTokenPaths } from '@config/global/tokenPathsConfig';
+import { configTokenPaths, configRefreshResponsePaths } from '@config/global/tokenPathsConfig';
 import { configCsrf } from '@config/global/csrfConfig';
 import { getAccessToken, setAccessToken } from '@/services/accessToken';
 
@@ -44,7 +44,7 @@ beforeEach(() => {
     setAccessToken(null);
     configEndpoints({ loginEndpoint: '/login', refreshEndpoint: '/refresh', logoutEndpoint: '/logout' });
     configTokenPaths({ accessTokenPath: 'data.access_token' });
-    configRefreshTokenPaths({ accessTokenPath: 'data.access_token' });
+    configRefreshResponsePaths({ accessTokenPath: 'data.access_token' });
 });
 
 describe('AxiosService — request interceptor', () => {

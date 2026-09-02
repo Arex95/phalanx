@@ -19,13 +19,18 @@ export interface PhalanxOptions {
     logout: string;
   };
 
-  /** Dot-notation path to extract the access token from the LOGIN response. */
+  /** Dot-notation path to the access token in the LOGIN response. */
   tokenPaths: {
     accessToken: string;
   };
 
-  /** Dot-notation path to extract the access token from the REFRESH response. */
-  refreshTokenPaths: {
+  /**
+   * Dot-notation path to the access token in the REFRESH response — the new
+   * one the server issues, not the refresh token, which the library never
+   * reads. Optional: defaults to `tokenPaths`, which is right whenever both
+   * endpoints answer with the same shape. Set it only when they differ.
+   */
+  refreshResponsePaths?: {
     accessToken: string;
   };
 

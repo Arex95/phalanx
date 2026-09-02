@@ -8,7 +8,7 @@ let tokenPathsConfig: AuthTokenPaths = {
   accessTokenPath: "data.access_token",
 };
 
-let refreshTokenPathsConfig: AuthTokenPaths = {
+let refreshResponsePathsConfig: AuthTokenPaths = {
   accessTokenPath: "data.access_token",
 };
 
@@ -27,8 +27,8 @@ export function configTokenPaths(config: TokenPathsConfig): void {
 /**
  * Same as `configTokenPaths`, for the token-refresh response.
  */
-export function configRefreshTokenPaths(config: TokenPathsConfig): void {
-  refreshTokenPathsConfig = Object.freeze({
+export function configRefreshResponsePaths(config: TokenPathsConfig): void {
+  refreshResponsePathsConfig = Object.freeze({
     accessTokenPath: config.accessTokenPath || "data.access_token",
   });
 }
@@ -37,6 +37,6 @@ export function getTokenPathsConfig(): TokenPathsConfig {
   return tokenPathsConfig;
 }
 
-export function getRefreshTokenPathsConfig(): TokenPathsConfig {
-  return refreshTokenPathsConfig;
+export function getRefreshResponsePathsConfig(): TokenPathsConfig {
+  return refreshResponsePathsConfig;
 }
