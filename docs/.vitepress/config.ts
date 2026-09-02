@@ -37,6 +37,8 @@ export default defineConfig({
                     { text: 'Actions', link: '/guide/actions' },
                     { text: 'Authentication', link: '/guide/authentication' },
                     { text: 'Error handling', link: '/guide/errors' },
+                    { text: 'Requests', link: '/guide/requests' },
+                    { text: 'Realtime connections', link: '/guide/realtime' },
                     { text: 'Field encryption', link: '/guide/field-encryption' }
                 ]
             },

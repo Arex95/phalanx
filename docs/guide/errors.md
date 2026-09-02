@@ -32,11 +32,20 @@ BaseError
 | `message` | the API's message when present, otherwise a default |
 | `context` | `{ responseData, status, headers }` |
 
-`context.headers` is preserved, so an error code returned in a header survives:
+`context.headers` is preserved, so an error code returned in a header survives
+normalisation:
 
 ```ts
-const code = error.context?.headers?.['x-error-code'];
+import { getErrorCode, isErrorCode } from '@arex95/phalanx';
+
+if (isErrorCode(error, 'DELETE_PROTECTION_ENABLED')) {
+    toast.error(t('branch.delete.protected'));
+}
 ```
+
+`getErrorCode(error, header?)` reads `x-error-code` by default and accepts
+another name. Both work on a normalized error and on a raw axios one, so code
+that also calls a transport directly does not need two paths.
 
 ## Validation issues
 

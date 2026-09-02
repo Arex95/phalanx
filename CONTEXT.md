@@ -67,6 +67,9 @@ src/
 │   ├── axios/                   AxiosService (401 interceptor) + singleton getter
 │   └── auth/                    authFetcher factory
 ├── crypto/encryptField.ts       hybrid AES-GCM + RSA-OAEP for outbound data
+├── http/                        createHeaderInterceptor, idempotency keys
+├── health/backendHealth.ts      shared "is the API up" signal
+├── realtime/                    backoff, connectionMachine (pure), RealtimeConnection
 ├── rest/RestStd.ts              base CRUD class
 ├── services/                    accessToken, extractTokens, refreshTokens, credentials
 ├── errors/                      BaseError → Network | Auth | Validation | Server
@@ -338,6 +341,29 @@ shipping the public key costs nothing. `getPublicKey()` caches the imported
 non-cached path has to change the PEM, not just the input.
 
 ---
+
+## Realtime
+
+`connectionMachine.ts` is a pure reducer: `(state, event, ctx, backoff) →
+{ state, effects }`. It owns no socket, timer or clock, which is why every
+transition — including the ones that only happen during an outage — is testable
+without opening a connection. `RealtimeConnection` runs the effects.
+
+**The transport is injected.** The admin this came from used
+`@microsoft/fetch-event-source`; adding that as a dependency would tie every
+consumer to it, so `open(ctx)` receives `{ token, signal, onOpen, onAuthError,
+onConnectError, onStreamError }` and the consumer wires whatever it wants.
+
+`RealtimeConnection.openStream` has a `!token` guard that coverage cannot
+reach: the `watch` on `accessToken` dispatches `authCleared` before the effect
+runs. It stays as a guard, not as dead code to delete.
+
+## Backend health
+
+Module-level signal with a threshold (2) and a window (8 s). It does **not**
+import a query client — "recover" is the application's decision, so callers
+register handlers with `onBackendRecovered`. `resetBackendHealth()` exists for
+tests.
 
 ## Utils
 

@@ -100,9 +100,56 @@ class ValidationError extends BaseError { issues: ValidationIssue[] }
 class ServerError     extends BaseError
 
 normalizeHttpError(error: unknown): unknown
+
+ERROR_CODE_HEADER                                    // 'x-error-code'
+getErrorCode(error: unknown, header?: string): string | null
+isErrorCode(error: unknown, code: string, header?: string): boolean
 ```
 
 See [Error handling](/guide/errors).
+
+## Requests
+
+```ts
+createHeaderInterceptor({ header, value, match?, exempt?, instance? }): () => void
+
+IDEMPOTENCY_HEADER                                   // 'Idempotency-Key'
+generateIdempotencyKey(): string
+useIdempotencyKey({ scope, persist? }): { key, ensure, rotate, clear }
+```
+
+See [Requests](/guide/requests).
+
+## Realtime
+
+```ts
+class RealtimeConnection {
+    constructor(options: { open: StreamOpener; backoff?: BackoffConfig; reportHealth?: boolean })
+    start(): void
+    stop(): void
+    retryNow(): void
+    readonly status: Readonly<Ref<ConnectionState>>
+}
+
+nextConnectionState(state, event, ctx, backoff?, random?): ConnectionTransition
+initialConnectionState
+computeDelay(attempt, config?, random?): number
+shouldGiveUp(attempt, config?): boolean
+DEFAULT_BACKOFF
+```
+
+## Backend health
+
+```ts
+useBackendHealth(): { status, isDown, isRetrying, retry }
+onBackendRecovered(handler): () => void
+configBackendHealth({ threshold?, windowMs? }): void
+reportBackendFailure(now?): void
+reportBackendSuccess(): void
+retryBackend(): Promise<void>
+```
+
+See [Realtime connections](/guide/realtime).
 
 ## Crypto
 
@@ -137,5 +184,9 @@ DeleteOptions · BulkCreateOptions · BulkUpdateOptions · BulkDeleteOptions
 UpsertOptions · CustomRequestOptions
 BaseModelKeys · CrudMethodName · CrudActions · InvalidateEntry
 EncryptedField · EncryptionConfig · CsrfConfig · RetryConfig · ValidationIssue
+ConnectionState · ConnectionEvent · ConnectionEffect · ConnectionContext
+ConnectionTransition · BackoffConfig · StreamContext · StreamOpener
+BackendStatus · BackendHealth · HeaderInterceptorOptions
+UseIdempotencyKeyOptions · UseIdempotencyKeyReturn
 CookieOptions · AuthTokenPaths · AuthResponse · EndpointsConfig
 ```
