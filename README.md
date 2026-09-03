@@ -109,7 +109,8 @@ pnpm build
 pnpm -C docs dev  # documentation site
 ```
 
-`prepublishOnly` runs typecheck, lint, tests and build.
+`prepublishOnly` runs typecheck, lint, tests and build. The same five steps run
+on every push and pull request — see `.github/workflows/test.yml`.
 
 ## License
 

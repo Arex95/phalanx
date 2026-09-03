@@ -1,0 +1,41 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # The same five steps `prepublishOnly` runs, in the same order, so a
+      # release cannot fail on something a push would have caught. Each is a
+      # separate step: a red check should say which gate failed without
+      # anyone opening the log.
+      - name: Typecheck source
+        run: pnpm typecheck
+      - name: Typecheck tests
+        run: pnpm typecheck:test
+      - name: Lint
+        run: pnpm lint
+      - name: Test
+        run: pnpm test
+      - name: Build
+        run: pnpm build
+
+      - name: Coverage
+        run: pnpm exec vitest run --coverage
