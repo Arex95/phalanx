@@ -75,6 +75,34 @@ Any non-axios client is an adapter in your project:
 +configAuthFetcher(ofetchFetcher);
 ```
 
+## Encrypted storage
+
+`storeEncryptedItem` and `getDecryptedItem` are replaced by `setSecureItem` and
+`getSecureItem`. The old pair used AES-CBC, which is unauthenticated, and took a
+key derived from a string that shipped in the bundle — recoverable from the
+browser, which is the one condition the guidance places on encrypting anything
+client-side.
+
+```diff
+-import { getAppKey, storeEncryptedItem, getDecryptedItem } from '@arex95/vue-core';
+-
+-await storeEncryptedItem('draft', value, getAppKey(), 'local');
+-const draft = await getDecryptedItem('draft', getAppKey(), 'local');
++import { setSecureItem, getSecureItem } from '@arex95/phalanx';
++
++await setSecureItem('draft', value);
++const draft = await getSecureItem('draft');
+```
+
+There is no key to pass: the library generates a non-extractable `CryptoKey`
+and keeps it in IndexedDB. `VITE_APP_KEY` and anything like it can be deleted.
+
+Cookies are no longer a storage target — `'local' | 'session'` replaces
+`LocationPreference`. `encrypt`, `decrypt`, `importKey` and `hex2ab` are gone
+with the AES-CBC implementation they belonged to.
+
+See [Secure storage](/guide/secure-storage).
+
 ## Services
 
 `static isFormData` is removed. `FormData`, `Blob` and `ArrayBuffer` bodies are

@@ -39,7 +39,8 @@ export default defineConfig({
                     { text: 'Error handling', link: '/guide/errors' },
                     { text: 'Requests', link: '/guide/requests' },
                     { text: 'Realtime connections', link: '/guide/realtime' },
-                    { text: 'Field encryption', link: '/guide/field-encryption' }
+                    { text: 'Field encryption', link: '/guide/field-encryption' },
+                    { text: 'Secure storage', link: '/guide/secure-storage' }
                 ]
             },
             {

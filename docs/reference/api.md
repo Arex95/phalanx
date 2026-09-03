@@ -164,13 +164,15 @@ See [Realtime connections](/guide/realtime).
 |---|---|
 | `encryptField(value)` | `Promise<EncryptedField>` — AES-GCM + RSA-OAEP |
 | `encrypt(text, key)` · `decrypt(cipher, key)` | symmetric helpers |
-| `importKey`, `getWebCrypto`, `ab2hex`, `hex2ab` | Web Crypto plumbing |
-| `storeEncryptedItem`, `getDecryptedItem` | encrypted storage helpers |
+| `getWebCrypto`, `ab2hex` | Web Crypto plumbing |
+| `setSecureItem`, `getSecureItem`, `removeSecureItem` | encrypted browser storage |
+| `getSecureStorageKey`, `destroySecureStorageKey` | the non-extractable key behind it |
 
 ::: warning
-`storeEncryptedItem` and `getDecryptedItem` are general-purpose helpers, not a
-place for session tokens — the key they use is available to any script in the
-page. See [Session handling](/concepts/session).
+`setSecureItem` protects stored bytes at rest, not a compromised page: script
+running in your page can read it back. It is not a place for session tokens.
+See [Secure storage](/guide/secure-storage) and
+[Session handling](/concepts/session).
 :::
 
 ## Utilities
@@ -179,6 +181,8 @@ page. See [Session handling](/concepts/session).
 isServer, isClient
 getStorage, getSessionStorage, getCookieStorage, getPreferredStorage
 safeGet, identityTranslate, ContentTypeEnum
+
+resetSecureStorageKeyCache(): void    // test seam
 ```
 
 ## Types

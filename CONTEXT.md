@@ -69,6 +69,7 @@ src/
 ├── crypto/encryptField.ts       hybrid AES-GCM + RSA-OAEP for outbound data
 ├── http/                        createHeaderInterceptor, idempotency keys
 ├── health/backendHealth.ts      shared "is the API up" signal
+├── storage/                     secureStorage + its non-extractable CryptoKey
 ├── realtime/                    backoff, connectionMachine (pure), RealtimeConnection
 ├── rest/RestStd.ts              base CRUD class
 ├── services/                    accessToken, extractTokens, refreshTokens, credentials
@@ -376,6 +377,26 @@ Module-level signal with a threshold (2) and a window (8 s). It does **not**
 import a query client — "recover" is the application's decision, so callers
 register handlers with `onBackendRecovered`. `resetBackendHealth()` exists for
 tests.
+
+## Secure storage
+
+`setSecureItem` / `getSecureItem`, AES-GCM, with a key generated once and kept
+in IndexedDB as a **non-extractable** `CryptoKey`. There is no configurable
+secret, by design: the v5 pair took a string from the bundle, so the key was
+recoverable from the browser — the one condition OWASP places on encrypting
+anything client-side. Study: `analysis/arex-vue-core/2026-09-02_cifrado-en-reposo-en-el-navegador.md`.
+
+Scope, and it belongs in every conversation about this module: it protects the
+stored bytes at rest, **not** a compromised page. Script running in the page can
+call `getSecureItem`. That is why tokens are not here.
+
+`getSecureStorageKey()` shares one promise between concurrent callers — two
+components starting together would otherwise race to generate two keys and
+leave the loser's data unreadable. A rejection is not cached, so a transient
+IndexedDB failure does not disable storage for the life of the page.
+
+Tests need `fake-indexeddb/auto`: happy-dom provides `crypto.subtle` and `btoa`
+but **not** `indexedDB`.
 
 ## Utils
 
