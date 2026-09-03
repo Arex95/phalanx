@@ -1,10 +1,12 @@
 # Phalanx
 
-**Everything a Vue 3 admin panel needs below the interface.**
+**The headless framework for admin panels.**
 
-Define a resource once and get its service, TanStack queries and mutations, and
-its custom operations. Sessions, realtime, encrypted storage and typed errors
-come decided. It ships no components.
+Everything an admin panel needs below the interface. Define a resource once and
+get its service, TanStack queries and mutations, and its custom operations —
+with sessions, realtime, encrypted storage and typed errors already decided.
+
+Headless: it ships no components and no styles, so the interface stays yours.
 
 📖 **[Documentation](https://arex95.github.io/phalanx/)** ·
 [Getting started](https://arex95.github.io/phalanx/guide/getting-started) ·

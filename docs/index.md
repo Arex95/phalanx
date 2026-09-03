@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: Phalanx
-  text: Everything an admin panel needs below the interface
-  tagline: Declare a resource once and get its services, queries, mutations and custom operations. Sessions, realtime, encrypted storage and typed errors come decided. You bring the components.
+  text: The headless framework for admin panels
+  tagline: Everything an admin panel needs below the interface — services, queries, mutations and custom operations derived from one declaration, with sessions, realtime, encrypted storage and typed errors already decided. You bring the components.
   actions:
     - theme: brand
       text: Get started

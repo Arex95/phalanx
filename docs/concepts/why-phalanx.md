@@ -10,7 +10,9 @@ Then come the parts that get built badly because they are nobody's main task: a
 stream that reconnects in a loop against an expired token, user data left in
 `localStorage` in the clear, a double-clicked submit that creates two records.
 
-Phalanx is that layer, decided once.
+Phalanx is that layer, decided once — a headless framework, in the sense the
+term is used for this kind of tool: it owns the behaviour and owns none of the
+interface.
 
 ```ts
 class UserService extends RestStd {
@@ -49,8 +51,12 @@ a confirmation step, and its own invalidation — typed from the service method.
 ## What it leaves alone
 
 No components, no styles, no router integration, no form library, no state
-management beyond TanStack Query. The transport is a one-function contract, so
-axios is replaceable.
+management beyond TanStack Query, and no scaffolding that generates pages. The
+transport is a one-function contract, so axios is replaceable.
+
+That last omission is deliberate and worth naming: a tool that also generates
+your screens decides your interface, and the day the design changes you are
+fighting it. Phalanx ends where the interface begins.
 
 ## Tradeoffs
 
