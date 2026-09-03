@@ -44,6 +44,16 @@ function storageKey(scope: string): string {
     return `idempotency:${scope}`;
 }
 
+/**
+ * One ref per scope, shared by every caller.
+ *
+ * A ref per call site looked equivalent and was not: two components on the same
+ * scope wrote to one storage slot but read from separate refs, so rotating in
+ * one left the other showing a key that no longer existed. The point of the
+ * scope is that they agree.
+ */
+const scopes = new Map<string, Ref<string | null>>();
+
 function readStored(scope: string): string | null {
     try {
         return globalThis.sessionStorage?.getItem(storageKey(scope)) ?? null;
@@ -79,7 +89,13 @@ function writeStored(scope: string, value: string | null): void {
  */
 export function useIdempotencyKey(options: UseIdempotencyKeyOptions): UseIdempotencyKeyReturn {
     const persist = options.persist ?? true;
-    const key = ref<string | null>(persist ? readStored(options.scope) : null);
+
+    let existing = scopes.get(options.scope);
+    if (!existing) {
+        existing = ref<string | null>(persist ? readStored(options.scope) : null);
+        scopes.set(options.scope, existing);
+    }
+    const key = existing;
 
     function rotate(): string {
         const next = generateIdempotencyKey();
@@ -98,4 +114,9 @@ export function useIdempotencyKey(options: UseIdempotencyKeyOptions): UseIdempot
     }
 
     return { key, ensure, rotate, clear };
+}
+
+/** Test seam: forgets every scope held in memory. Storage is left alone. */
+export function resetIdempotencyScopes(): void {
+    scopes.clear();
 }

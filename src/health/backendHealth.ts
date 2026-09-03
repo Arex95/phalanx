@@ -11,6 +11,13 @@ export interface BackendHealthOptions {
 
 const DEFAULTS = { threshold: 2, windowMs: 8_000 };
 
+/**
+ * Module-level state, like the configuration singletons: one health signal per
+ * process. Correct in a browser, wrong in SSR request handling, where every
+ * request would share one backend's health with every other. Do not drive it
+ * from a server request handler.
+ */
+
 const status = ref<BackendStatus>('healthy');
 const consecutiveFailures = ref(0);
 const firstFailureAt = ref<number | null>(null);
@@ -88,7 +95,12 @@ export function useBackendHealth(): BackendHealth {
     };
 }
 
-/** Test seam: clears the module-level state. */
+/**
+ * Clears the module-level state.
+ *
+ * Exported for tests — this library's and a consumer's, since the signal
+ * survives between test cases otherwise. Not part of the runtime flow.
+ */
 export function resetBackendHealth(): void {
     status.value = 'healthy';
     consecutiveFailures.value = 0;

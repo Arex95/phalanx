@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { generateIdempotencyKey, IDEMPOTENCY_HEADER, useIdempotencyKey } from './idempotency';
+import {
+    generateIdempotencyKey,
+    IDEMPOTENCY_HEADER,
+    resetIdempotencyScopes,
+    useIdempotencyKey
+} from './idempotency';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -26,6 +31,7 @@ describe('generateIdempotencyKey', () => {
 describe('useIdempotencyKey', () => {
     beforeEach(() => {
         sessionStorage.clear();
+        resetIdempotencyScopes();
     });
 
     it('starts empty and generates on ensure', () => {
@@ -55,15 +61,41 @@ describe('useIdempotencyKey', () => {
         expect(useIdempotencyKey({ scope: 'create' }).key.value).toBe(key);
     });
 
+    it('two callers on the same scope share one key', () => {
+        const a = useIdempotencyKey({ scope: 'create' });
+        const b = useIdempotencyKey({ scope: 'create' });
+
+        const key = a.ensure();
+        expect(b.key.value).toBe(key);
+
+        const rotated = a.rotate();
+        expect(b.key.value).toBe(rotated);
+        expect(b.ensure()).toBe(rotated);
+
+        a.clear();
+        expect(b.key.value).toBeNull();
+    });
+
     it('keeps scopes apart', () => {
         const a = useIdempotencyKey({ scope: 'create' }).ensure();
         const b = useIdempotencyKey({ scope: 'update' }).ensure();
         expect(a).not.toBe(b);
     });
 
-    it('does not persist when asked not to', () => {
-        useIdempotencyKey({ scope: 'volatile', persist: false }).ensure();
+    it('does not write to storage when asked not to', () => {
+        const key = useIdempotencyKey({ scope: 'volatile', persist: false }).ensure();
+
         expect(sessionStorage.getItem('idempotency:volatile')).toBeNull();
+
+        // Still shared within the page — `persist: false` means it does not
+        // survive a reload, not that two callers on one scope disagree.
+        expect(useIdempotencyKey({ scope: 'volatile', persist: false }).key.value).toBe(key);
+    });
+
+    it('a non-persisted key is gone after a reload', () => {
+        useIdempotencyKey({ scope: 'volatile', persist: false }).ensure();
+
+        resetIdempotencyScopes(); // a fresh page load
         expect(useIdempotencyKey({ scope: 'volatile', persist: false }).key.value).toBeNull();
     });
 

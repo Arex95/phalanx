@@ -20,8 +20,10 @@ export const DEFAULT_BACKOFF: BackoffConfig = Object.freeze({
  * factor.
  *
  * The randomness is the point: without it every client that lost the same
- * outage reconnects on the same tick and the recovering server takes the whole
- * fleet at once.
+ * outage returns on the same tick and the recovering server takes the whole
+ * fleet at once. This is the one implementation — `retryWithBackoff` uses it
+ * too, so a request retry and a stream reconnection space themselves the same
+ * way.
  */
 export function computeDelay(
     attempt: number,

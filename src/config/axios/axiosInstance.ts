@@ -16,13 +16,23 @@ let defaultConfig: AxiosServiceOptions | null = null;
  */
 export const configAxios = (config: AxiosServiceOptions): void => {
   defaultConfig = config;
-  axiosServiceInstance = new AxiosService({
-    baseURL: config.baseURL,
-    headers: config.headers,
-    timeout: config.timeout,
-    withCredentials: config.withCredentials,
-    setupAuthInterceptors: config.setupAuthInterceptors,
-  });
+
+  // Reconfigure rather than replace. An earlier version built a new
+  // `AxiosService` here, which swapped the singleton and left every
+  // interceptor a consumer had already registered attached to an instance
+  // nothing used again — with no error, because the requests kept working
+  // without it.
+  if (axiosServiceInstance) {
+    axiosServiceInstance.reconfigure(config);
+  } else {
+    axiosServiceInstance = new AxiosService({
+      baseURL: config.baseURL,
+      headers: config.headers,
+      timeout: config.timeout,
+      withCredentials: config.withCredentials,
+      setupAuthInterceptors: config.setupAuthInterceptors,
+    });
+  }
   
   // Configure auth fetcher factory lazily to avoid circular dependency
   // The factory function is only called when getDefaultAuthFetcher() is invoked

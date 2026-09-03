@@ -113,8 +113,12 @@ interface RetryConfig {
 ```
 
 The default condition retries network errors and responses with status 408, 429
-or ≥ 500. Delays are not jittered, so many clients recovering from one outage
-retry in step; pass `retryCondition` or your own delays if that matters.
+or ≥ 500 — never a 4xx you caused.
+
+Delays are exponential, capped at `maxRetryDelay`, and randomised. The
+randomisation matters at scale: without it every client that lost the same
+outage retries on the same tick and hits the recovering server together. The
+same function spaces the [realtime reconnection](/guide/realtime).
 
 ## Custom methods
 

@@ -91,7 +91,13 @@ onBackendRecovered(() => queryClient.refetchQueries());
 recovery handlers and holds `isRetrying` until they settle.
 
 What "recover" means belongs to the application, so the library holds handlers
-rather than importing a query client. `reportBackendFailure()` and
+rather than importing a query client.
+
+::: warning
+The signal is module-level state: one per process. That suits a browser and
+does not suit SSR request handling, where every request would share one
+reading. Do not drive it from a server request handler.
+::: `reportBackendFailure()` and
 `reportBackendSuccess()` are exported for code that wants to feed the signal
 from its own requests.
 

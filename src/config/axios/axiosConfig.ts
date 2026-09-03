@@ -25,9 +25,10 @@ export class AxiosService {
   private readonly instance: AxiosInstance;
   private cancelTokenSource: CancelTokenSource;
   private activeRequests: number = 0;
-  private readonly refreshTokenUrl: string;
-  private readonly logoutUrl: string;
+  private refreshTokenUrl: string;
+  private logoutUrl: string;
 
+  private authInterceptorIds: { request: number; response: number } | null = null;
   private isRefreshing = false;
   private failedQueue: {
     resolve: (value: string) => void;
@@ -98,9 +99,40 @@ export class AxiosService {
     }
   }
 
+  /**
+   * Applies new options to the SAME axios instance.
+   *
+   * `configAxios` used to build a new `AxiosService` on every call, which
+   * replaced the singleton and left any interceptor a consumer had already
+   * registered on an instance nothing used again — silently, since the
+   * requests kept working without it.
+   */
+  public reconfigure(options: AxiosServiceOptions): void {
+    const endpointsConfig = getEndpointsConfig();
+    this.refreshTokenUrl = endpointsConfig.REFRESH;
+    this.logoutUrl = endpointsConfig.LOGOUT;
+
+    this.instance.defaults.baseURL = options.baseURL ?? '';
+    this.instance.defaults.timeout = options.timeout ?? 30000;
+    this.instance.defaults.withCredentials = options.withCredentials ?? false;
+    this.instance.defaults.headers = {
+      ...this.instance.defaults.headers,
+      ...(options.headers ?? {}),
+    } as typeof this.instance.defaults.headers;
+
+    const wantsAuth = options.setupAuthInterceptors !== false;
+    if (wantsAuth && !this.authInterceptorIds) {
+      this.initializeInterceptors();
+    } else if (!wantsAuth && this.authInterceptorIds) {
+      this.instance.interceptors.request.eject(this.authInterceptorIds.request);
+      this.instance.interceptors.response.eject(this.authInterceptorIds.response);
+      this.authInterceptorIds = null;
+    }
+  }
+
   private initializeInterceptors() {
     // Request: attach the in-memory access token + CSRF header
-    this.instance.interceptors.request.use(
+    const requestId = this.instance.interceptors.request.use(
       (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
         const token = getAccessToken();
         if (token) {
@@ -115,7 +147,7 @@ export class AxiosService {
     );
 
     // Response: handle 401 with token refresh
-    this.instance.interceptors.response.use(
+    const responseId = this.instance.interceptors.response.use(
       (response: AxiosResponse) => {
         this.activeRequests--;
         return response;
@@ -175,6 +207,8 @@ export class AxiosService {
         }
       }
     );
+
+    this.authInterceptorIds = { request: requestId, response: responseId };
   }
 
   public getActiveRequests(): number {

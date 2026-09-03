@@ -152,6 +152,13 @@ carries a bearer header and is CSRF-immune by construction.
 - Refresh failure → reject the queue with that error and reject the original.
 - SSR-safe: refresh is skipped entirely when `window === undefined`.
 
+**`configAxios` reconfigures, it does not replace.** It used to build a new
+`AxiosService` on every call, which swapped the singleton and left every
+interceptor a consumer had registered attached to an instance nothing used
+again — silently, because requests kept working without it. `reconfigure()`
+mutates `defaults` on the same axios instance and installs or ejects the auth
+interceptors to match the flag. `axiosInstance.reconfigure.test.ts` pins it.
+
 `setupAuthInterceptors: false` → the constructor skips `initializeInterceptors()`,
 and the flag **is** forwarded by `configAxios()` / `getConfiguredAxiosInstance()`.
 It was inert once; there are tests pinning it now.
@@ -354,6 +361,11 @@ without opening a connection. `RealtimeConnection` runs the effects.
 consumer to it, so `open(ctx)` receives `{ token, signal, onOpen, onAuthError,
 onConnectError, onStreamError }` and the consumer wires whatever it wants.
 
+`useIdempotencyKey` keeps **one ref per scope** in a module map. A ref per call
+site looked equivalent and was not: two components on one scope wrote to a
+single storage slot but read from separate refs, so rotating in one left the
+other holding a key that no longer existed.
+
 `RealtimeConnection.openStream` has a `!token` guard that coverage cannot
 reach: the `watch` on `accessToken` dispatches `authCleared` before the effect
 runs. It stays as a guard, not as dead code to delete.
@@ -372,8 +384,9 @@ tests.
   `Date` (ISO)/arrays/booleans (`"0"`/`"1"`); skips nullish; guards prototype
   pollution keys. Also re-exported from `@/rest/RestStd`.
 - `retryWithBackoff(fn, config)` — 3 retries, 1s → 10s cap, ×2. Retries ≥500,
-  408, 429 and network errors. **No jitter**, so a fleet recovering from one
-  outage retries in step.
+  408, 429 and network errors. Delegates the delay to `realtime/backoff`'s
+  `computeDelay`, jitter included: two subsystems spacing retries differently
+  was a difference nobody had chosen.
 - `ssr.ts` — `isServer`, `isClient`, `getStorage()`, `getSessionStorage()`,
   `getCookieStorage()`, `getPreferredStorage()`, `CookieOptions`.
 

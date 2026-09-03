@@ -147,7 +147,14 @@ configBackendHealth({ threshold?, windowMs? }): void
 reportBackendFailure(now?): void
 reportBackendSuccess(): void
 retryBackend(): Promise<void>
+
+resetBackendHealth(): void        // test seam
+resetIdempotencyScopes(): void    // test seam
 ```
+
+The two `reset*` functions exist so a test suite can start from a known state —
+both hold module-level state that otherwise survives between cases. They are not
+part of the runtime flow.
 
 See [Realtime connections](/guide/realtime).
 

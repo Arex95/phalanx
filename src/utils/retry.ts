@@ -1,4 +1,5 @@
 import { NetworkError, ServerError } from '@/errors';
+import { computeDelay } from '@/realtime/backoff';
 
 export interface RetryConfig {
   retries?: number;
@@ -30,11 +31,17 @@ const DEFAULT_RETRY_CONFIG: Required<RetryConfig> = {
 
 export async function retryWithBackoff<T>(
   fn: () => Promise<T>,
-  config: RetryConfig = {}
+  config: RetryConfig = {},
+  random: () => number = Math.random
 ): Promise<T> {
   const finalConfig = { ...DEFAULT_RETRY_CONFIG, ...config };
+  const backoff = {
+    baseMs: finalConfig.retryDelay,
+    factor: finalConfig.backoffMultiplier,
+    capMs: finalConfig.maxRetryDelay,
+    maxAttempts: finalConfig.retries,
+  };
   let lastError: unknown;
-  let delay = finalConfig.retryDelay;
 
   for (let attempt = 0; attempt <= finalConfig.retries; attempt++) {
     try {
@@ -50,10 +57,10 @@ export async function retryWithBackoff<T>(
         throw error;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, delay));
-      delay = Math.min(
-        delay * finalConfig.backoffMultiplier,
-        finalConfig.maxRetryDelay
+      // Shared with the realtime reconnection, jitter included: two subsystems
+      // spacing retries differently was a difference nobody chose.
+      await new Promise((resolve) =>
+        setTimeout(resolve, computeDelay(attempt + 1, backoff, random))
       );
     }
   }
