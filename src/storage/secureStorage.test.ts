@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     destroySecureStorageKey,
     getSecureItem,
@@ -171,5 +171,78 @@ describe('the key', () => {
         generate.mockRestore();
 
         await expect(getSecureStorageKey()).resolves.toBeDefined();
+    });
+});
+
+describe('unavailable runtimes', () => {
+    beforeEach(() => {
+        resetSecureStorageKeyCache();
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        resetSecureStorageKeyCache();
+    });
+
+    it('names Web Crypto when crypto.subtle is missing', async () => {
+        // An admin served over plain http on an intranet: the page runs, and
+        // `crypto.subtle` is simply absent. The error has to say why.
+        vi.stubGlobal('crypto', {});
+
+        await expect(getSecureStorageKey()).rejects.toThrow(/Web Crypto/);
+        await expect(getSecureStorageKey()).rejects.toThrow(/secure context/);
+    });
+
+    it('names IndexedDB when it is missing', async () => {
+        vi.stubGlobal('indexedDB', undefined);
+
+        await expect(getSecureStorageKey()).rejects.toThrow(/IndexedDB is not available/);
+    });
+
+    it('reports a failure to open the database', async () => {
+        vi.stubGlobal('indexedDB', {
+            open: () => {
+                const request: Record<string, unknown> = { error: new Error('quota exceeded') };
+                queueMicrotask(() => (request.onerror as () => void)?.());
+                return request;
+            }
+        });
+
+        await expect(getSecureStorageKey()).rejects.toThrow('quota exceeded');
+    });
+
+    it('falls back to a named error when the request carries none', async () => {
+        vi.stubGlobal('indexedDB', {
+            open: () => {
+                const request: Record<string, unknown> = { error: null };
+                queueMicrotask(() => (request.onerror as () => void)?.());
+                return request;
+            }
+        });
+
+        await expect(getSecureStorageKey()).rejects.toThrow(/IndexedDB open failed/);
+    });
+
+    it('a write is a no-op rather than a plaintext fallback when storage is blocked', async () => {
+        // Replacing the object, not spying on Storage.prototype: happy-dom's
+        // storage does not go through that prototype, so a spy there applies
+        // to nothing and the test passes without exercising anything.
+        const blocked = {
+            getItem: () => {
+                throw new Error('blocked');
+            },
+            setItem: () => {
+                throw new Error('blocked');
+            },
+            removeItem: () => {
+                throw new Error('blocked');
+            }
+        };
+        vi.stubGlobal('localStorage', blocked);
+
+        // The failure that matters: never fall back to storing it in the clear.
+        await expect(setSecureItem('patient', 'Ada')).resolves.toBeUndefined();
+        expect(await getSecureItem('patient')).toBeNull();
+        expect(() => removeSecureItem('patient')).not.toThrow();
     });
 });

@@ -73,7 +73,12 @@ export async function setSecureItem(
         new TextEncoder().encode(value)
     );
 
-    storage.setItem(key, `${toBase64(iv)}.${toBase64(new Uint8Array(ciphertext))}`);
+    try {
+        storage.setItem(key, `${toBase64(iv)}.${toBase64(new Uint8Array(ciphertext))}`);
+    } catch {
+        // Quota exceeded, or a browser refusing to write. The value is simply
+        // not stored — it is never written in the clear as a fallback.
+    }
 }
 
 /**
@@ -89,7 +94,12 @@ export async function getSecureItem(
     storageArea: SecureStorageArea = 'local'
 ): Promise<string | null> {
     const storage = area(storageArea);
-    const stored = storage?.getItem(key);
+    let stored: string | null | undefined;
+    try {
+        stored = storage?.getItem(key);
+    } catch {
+        return null;
+    }
     if (!stored) return null;
 
     const separator = stored.indexOf('.');
@@ -113,5 +123,9 @@ export async function getSecureItem(
 
 /** Removes the entry. */
 export function removeSecureItem(key: string, storageArea: SecureStorageArea = 'local'): void {
-    area(storageArea)?.removeItem(key);
+    try {
+        area(storageArea)?.removeItem(key);
+    } catch {
+        // Nothing to do: the entry is unreachable either way.
+    }
 }

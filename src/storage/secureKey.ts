@@ -74,6 +74,12 @@ export function getSecureStorageKey(): Promise<CryptoKey> {
     if (cached) return cached;
 
     const pending = (async () => {
+        // Checked before anything else, not just before generating: a stored
+        // key is useless without `crypto.subtle`, and letting that case
+        // through means the failure surfaces later as a raw TypeError from
+        // `encrypt` instead of an error that says what is wrong.
+        subtle();
+
         const db = await openDatabase();
         try {
             const existing = await readKey(db);

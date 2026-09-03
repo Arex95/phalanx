@@ -108,18 +108,20 @@ describe('useIdempotencyKey', () => {
     });
 
     it('degrades to in-memory when storage throws', () => {
+        // Replacing the object rather than spying on Storage.prototype:
+        // happy-dom's storage does not inherit from it, so the spy applied to
+        // nothing and this test passed without ever entering the fallback.
         const boom = () => {
             throw new Error('blocked');
         };
-        vi.spyOn(Storage.prototype, 'getItem').mockImplementation(boom);
-        vi.spyOn(Storage.prototype, 'setItem').mockImplementation(boom);
+        vi.stubGlobal('sessionStorage', { getItem: boom, setItem: boom, removeItem: boom });
 
         const idem = useIdempotencyKey({ scope: 'private-mode' });
         const key = idem.ensure();
         expect(key).toMatch(UUID);
         expect(idem.ensure()).toBe(key);
 
-        vi.restoreAllMocks();
+        vi.unstubAllGlobals();
     });
 
     it('exports the header name', () => {
