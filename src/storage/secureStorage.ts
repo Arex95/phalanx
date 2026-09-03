@@ -5,22 +5,24 @@ import { getSecureStorageKey } from './secureKey';
  *
  * ## What it protects, and what it does not
  *
- * | Threat | Protected |
- * |---|---|
- * | Someone with the device, or a copy of the browser profile | yes |
- * | A browser backup or profile sync | yes |
- * | Anyone opening DevTools → Application | yes |
- * | **XSS running in the page** | **no** |
+ * - Anyone looking at storage sees ciphertext, not values.
+ * - A modified value fails to decrypt rather than reading back as genuine.
+ * - No code in the page can export the key to use elsewhere.
  *
- * The last row is the one to remember. Script running in your page can call
- * these functions exactly as your own code does, so this defends the stored
- * bytes at rest, not the running page. That is a different threat from the one
- * session tokens face — which is why tokens are not kept here, or anywhere else
- * on disk.
+ * Two things it does not do, both worth stating plainly:
  *
- * The key is a non-extractable `CryptoKey` in IndexedDB: the browser will use
- * it but never hand over its bytes, and the application has no secret to
- * configure.
+ * - **XSS.** Script in the page calls these functions exactly as your code
+ *   does. This defends stored bytes, not a compromised page — a different
+ *   threat from the one session tokens face, which is why tokens are not kept
+ *   here or anywhere else on disk.
+ * - **A full profile copy.** `extractable: false` is enforced by the Web Crypto
+ *   layer, not by hardware or an OS keychain; the key is still on disk in the
+ *   browser's storage. Firefox's NSS backend requires that what goes into
+ *   IndexedDB be exportable underneath, so the margin there is thinner.
+ *
+ * The key is a non-extractable `CryptoKey` in IndexedDB, which is the bar OWASP
+ * sets and the highest a browser offers without asking the user for a
+ * passphrase on every visit.
  */
 
 const IV_BYTES = 12; // 96 bits, the size AES-GCM is specified for

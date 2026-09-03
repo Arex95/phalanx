@@ -20,17 +20,28 @@ it as a non-extractable `CryptoKey` in IndexedDB.
 
 ## What it protects, and what it does not
 
-| Threat | Protected |
+| Threat | |
 |---|---|
-| Someone with the device, or a copy of the browser profile | ✅ |
-| A browser backup or profile sync | ✅ |
-| Anyone opening DevTools → Application | ✅ |
-| A modified value being read back as if it were genuine | ✅ |
-| **XSS running in the page** | ❌ |
+| Anyone looking at storage — DevTools → Application, a copied `localStorage` file | ✅ ciphertext only |
+| A value modified in storage being read back as genuine | ✅ AES-GCM rejects it |
+| A script exfiltrating the key to use elsewhere | ✅ the key cannot be exported |
+| Someone with the **whole** browser profile and knowledge of its internals | ⚠️ limited — the key is on disk too |
+| **XSS running in the page** | ❌ it can call `getSecureItem` |
 
-The last row is the one that matters. Script running in your page can call
-`getSecureItem` exactly as your own code does. This protects **stored bytes at
-rest**, not a compromised page.
+Two rows deserve reading twice.
+
+**XSS.** Script running in your page calls `getSecureItem` exactly as your own
+code does. This protects stored bytes, not a compromised page.
+
+**A full profile copy.** `extractable: false` is enforced by the Web Crypto
+layer, not by hardware or an OS keychain: the key still lives on disk in the
+browser's own storage. It stops any code in the page from exporting it; it does
+not stop someone who has the whole profile and is willing to dig into browser
+internals. On Firefox the margin is thinner still, since its NSS backend
+requires that what goes into IndexedDB be exportable underneath.
+
+What this buys over plaintext is nonetheless the difference between "readable by
+anyone who opens the file" and "requires attacking the browser itself".
 
 That is a different threat from the one session tokens face, where the attacker
 *is* the injected script — which is why tokens are not kept here, or anywhere
@@ -39,7 +50,11 @@ else on disk. See [Session handling](/concepts/session).
 ::: tip Where the bar comes from
 [OWASP][owasp] permits client-side encryption of stored data only when the key
 is *"not itself recoverable from the browser… wrapped by a non-extractable Web
-Crypto `CryptoKey`"*. That is what this is.
+Crypto `CryptoKey`"*. This meets that bar, which is the highest one a browser
+offers without asking the user for a passphrase on every visit.
+
+For data where a full profile copy is in the threat model, the answer is not a
+better browser key — it is not keeping the data in the browser.
 :::
 
 [owasp]: https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html

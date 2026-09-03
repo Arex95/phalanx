@@ -386,9 +386,18 @@ secret, by design: the v5 pair took a string from the bundle, so the key was
 recoverable from the browser — the one condition OWASP places on encrypting
 anything client-side. Study: `analysis/arex-vue-core/2026-09-02_cifrado-en-reposo-en-el-navegador.md`.
 
-Scope, and it belongs in every conversation about this module: it protects the
-stored bytes at rest, **not** a compromised page. Script running in the page can
-call `getSecureItem`. That is why tokens are not here.
+Scope, and it belongs in every conversation about this module:
+
+- It protects the stored bytes, **not** a compromised page — script in the page
+  can call `getSecureItem`. That is why tokens are not here.
+- `extractable: false` is enforced by the **Web Crypto layer**, not by hardware
+  or an OS keychain. The key is on disk in the browser's own storage, so someone
+  with the entire profile and knowledge of browser internals is not shut out.
+  Firefox's NSS backend requires IndexedDB contents be exportable underneath,
+  which makes that margin thinner there than on Chrome.
+
+Do not describe this as "the key never touches disk". It does. What it never
+does is leave the browser through an API.
 
 `getSecureStorageKey()` shares one promise between concurrent callers — two
 components starting together would otherwise race to generate two keys and
