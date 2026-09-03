@@ -49,6 +49,7 @@ export default defineConfig({
                 text: 'Concepts',
                 items: [
                     { text: 'Why Phalanx', link: '/concepts/why-phalanx' },
+                    { text: 'Foundations', link: '/concepts/foundations' },
                     { text: 'Session handling', link: '/concepts/session' },
                     { text: 'Server requirements', link: '/concepts/server-requirements' }
                 ]
