@@ -26,10 +26,10 @@
     "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
     "lint": "eslint .",
     "prepublishOnly": "npm run typecheck && npm run typecheck:test && npm run lint && npm run test && npm run build",
-    "changelog": "conventional-changelog -p angular -o CHANGELOG.md -r 0",
-    "release": "npm version patch && npm run changelog && git add CHANGELOG.md package.json pnpm-lock.yaml && git commit -m \"chore(release): update changelog\" && git push && npm publish --access public",
-    "release:major": "npm version major && npm run changelog && git add CHANGELOG.md package.json pnpm-lock.yaml && git commit -m \"chore(release): update changelog\" && git push && npm publish --access public",
-    "release:minor": "npm version minor && npm run changelog && git add CHANGELOG.md package.json pnpm-lock.yaml && git commit -m \"chore(release): update changelog\" && git push && npm publish --access public"
+    "release": "git push --follow-tags && npm publish --access public",
+    "release:major": "npm version major -m \"chore(release): %s\"",
+    "release:minor": "npm version minor -m \"chore(release): %s\"",
+    "release:patch": "npm version patch -m \"chore(release): %s\""
   },
   "repository": {
     "type": "git",
@@ -70,7 +70,6 @@
     "@vitest/coverage-v8": "^4.1.11",
     "@vue/test-utils": "^2.4.11",
     "axios": "^1.18.1",
-    "conventional-changelog-cli": "^5.0.0",
     "eslint": "^9.23.0",
     "eslint-plugin-vue": "^10.0.0",
     "fake-indexeddb": "^6.2.5",

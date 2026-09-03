@@ -9,3 +9,4 @@ yalc.lock
 .claude/settings.local.json
 docs/.vitepress/dist
 docs/.vitepress/cache
+.vitepress/cache
