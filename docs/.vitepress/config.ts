@@ -38,6 +38,7 @@ export default defineConfig({
                     { text: 'Authentication', link: '/guide/authentication' },
                     { text: 'Error handling', link: '/guide/errors' },
                     { text: 'Requests', link: '/guide/requests' },
+                    { text: 'Typing from OpenAPI', link: '/guide/openapi' },
                     { text: 'Realtime connections', link: '/guide/realtime' },
                     { text: 'Field encryption', link: '/guide/field-encryption' },
                     { text: 'Secure storage', link: '/guide/secure-storage' }

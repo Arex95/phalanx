@@ -118,4 +118,5 @@ const { mutate: createUser } = userMutations.create;
 | [Actions](/guide/actions) | permissions, confirmation and invalidation |
 | [Error handling](/guide/errors) | the typed error hierarchy |
 | [Realtime connections](/guide/realtime) | streams that reconnect and refresh |
+| [Typing from OpenAPI](/guide/openapi) | services typed from a generated schema |
 | [Secure storage](/guide/secure-storage) | encrypted data at rest in the browser |
