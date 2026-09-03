@@ -113,6 +113,7 @@ const { mutate: createUser } = userMutations.create;
 
 | | |
 |---|---|
+| [Project structure](/guide/project-structure) | how to lay a panel out, and why |
 | [Services](/guide/services) | the `RestStd` surface and custom methods |
 | [Queries](/guide/queries) · [Mutations](/guide/mutations) | the generated composables |
 | [Actions](/guide/actions) | permissions, confirmation and invalidation |
