@@ -66,7 +66,7 @@ export default defineConfig({
 
         footer: {
             message: 'Released under the MIT License.',
-            copyright: 'Built by Arex Forge'
+            copyright: 'Built by <a href=\'https://github.com/Arex95\'>Arex95</a>'
         }
     }
 });
