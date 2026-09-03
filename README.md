@@ -1,10 +1,10 @@
 # Phalanx
 
-**REST and auth foundation for Vue 3 admin panels.**
+**Everything a Vue 3 admin panel needs below the interface.**
 
 Define a resource once and get its service, TanStack queries and mutations, and
-its custom operations — with session handling, typed errors and cache
-invalidation already wired.
+its custom operations. Sessions, realtime, encrypted storage and typed errors
+come decided. It ships no components.
 
 📖 **[Documentation](https://arex95.github.io/phalanx/)** ·
 [Getting started](https://arex95.github.io/phalanx/guide/getting-started) ·
@@ -66,8 +66,15 @@ confirmation, reports the result and invalidates the list.
   one refresh in flight with concurrent 401s queued behind it.
 - **Errors.** `AuthError`, `ValidationError`, `ServerError`, `NetworkError` from
   every call, with validation issues normalised across four common API shapes.
+- **Realtime.** A reconnection state machine with backoff, a circuit breaker and
+  a token refresh when the stream rejects one. The transport is injected, so it
+  runs over SSE, a WebSocket or anything else.
+- **Encryption.** Browser storage encrypted under a non-extractable key, and
+  hybrid field encryption for data that should only be readable by the server.
+- **The small things.** Idempotency keys, contextual headers, a shared signal
+  for when the API is unreachable.
 
-It ships no components and no styles.
+It ships no components and no styles: the screen stays yours.
 
 ## Requirements
 

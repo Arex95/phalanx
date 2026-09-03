@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: Phalanx
-  text: REST and auth for Vue admin panels
-  tagline: Declare a resource once and get its service, queries, mutations and custom actions — with session handling, typed errors and cache invalidation already wired.
+  text: Everything an admin panel needs below the interface
+  tagline: Declare a resource once and get its services, queries, mutations and custom operations. Sessions, realtime, encrypted storage and typed errors come decided. You bring the components.
   actions:
     - theme: brand
       text: Get started
@@ -14,10 +14,10 @@ hero:
       link: /concepts/why-phalanx
 
 features:
-  - title: Beyond CRUD
-    details: Custom operations carry their permission, confirmation, notification and cache invalidation as metadata, so a view calls one mutation instead of wiring four concerns.
-  - title: Session handling included
-    details: Access token in memory, refresh token in an HttpOnly cookie, one refresh in flight with concurrent 401s queued behind it.
-  - title: Inferred types
-    details: Custom service methods appear on the generated queries and mutations with their own argument and return types. Nothing is declared twice.
+  - title: The data layer, derived
+    details: One resource declaration produces its service, its TanStack queries and mutations, and its custom operations — each carrying the permission, confirmation, notification and cache invalidation that a view would otherwise wire by hand.
+  - title: The parts nobody wants to rebuild
+    details: Sessions with an HttpOnly refresh cookie. Realtime streams that reconnect, back off and refresh an expired token. Encrypted browser storage. Idempotency keys, contextual headers, backend health.
+  - title: Typed all the way through
+    details: Custom service methods keep their signatures on the generated composables. Errors arrive as classes, with validation issues normalised across four common API shapes.
 ---

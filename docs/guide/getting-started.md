@@ -1,8 +1,9 @@
 # Getting started
 
-Phalanx provides the data layer of an admin panel: services over a REST API,
-TanStack Query composables derived from them, session handling, and metadata for
-operations that are not CRUD. It ships no components and no styles.
+Phalanx provides what sits under an admin panel: services over a REST API and
+the TanStack Query composables derived from them, metadata for operations that
+are not CRUD, session handling, realtime connections, encrypted browser storage
+and typed errors. It ships no components and no styles.
 
 ## Installation
 
@@ -116,3 +117,5 @@ const { mutate: createUser } = userMutations.create;
 | [Queries](/guide/queries) · [Mutations](/guide/mutations) | the generated composables |
 | [Actions](/guide/actions) | permissions, confirmation and invalidation |
 | [Error handling](/guide/errors) | the typed error hierarchy |
+| [Realtime connections](/guide/realtime) | streams that reconnect and refresh |
+| [Secure storage](/guide/secure-storage) | encrypted data at rest in the browser |

@@ -1,7 +1,7 @@
 {
   "name": "@arex95/phalanx",
   "version": "6.0.0",
-  "description": "Opinionated REST + Auth foundation for Vue 3 admin panels. Typed CRUD services, declarative actions with authorization and confirmation, and in-memory tokens with an HttpOnly refresh cookie.",
+  "description": "Foundation for Vue 3 admin panels: typed REST services with derived TanStack queries and mutations, declarative actions, session handling with an HttpOnly refresh cookie, resilient realtime connections, encrypted browser storage and typed errors.",
   "main": "dist/index.mjs",
   "module": "dist/index.mjs",
   "exports": {
@@ -38,15 +38,18 @@
   "keywords": [
     "vue",
     "vue3",
-    "rest",
-    "auth",
     "admin",
-    "crud",
-    "jwt",
+    "admin-panel",
+    "typescript",
+    "rest-api",
+    "tanstack-query",
+    "authentication",
+    "realtime",
+    "sse",
+    "encryption",
     "csrf",
     "axios",
-    "tanstack-query",
-    "typescript"
+    "jwt"
   ],
   "author": "Arturo Rafael Serrano Girón",
   "license": "MIT",

@@ -1,12 +1,16 @@
 # Why Phalanx
 
-Vue has no opinionated answer for the data layer of an admin panel. Most
-projects assemble one: an axios instance with a bearer interceptor, a queue that
-holds requests during a token refresh, a class per resource, and — in every view
-that does something other than CRUD — a permission check, a confirmation dialog,
-a toast and a list of cache keys to invalidate.
+Vue has no opinionated answer for what sits under an admin panel. Every project
+assembles the same layer: an axios instance with a bearer interceptor, a queue
+that holds requests during a token refresh, a class per resource, and — in every
+view that does something other than CRUD — a permission check, a confirmation
+dialog, a toast and a list of cache keys to invalidate.
 
-Phalanx is that assembly, done once.
+Then come the parts that get built badly because they are nobody's main task: a
+stream that reconnects in a loop against an expired token, user data left in
+`localStorage` in the clear, a double-clicked submit that creates two records.
+
+Phalanx is that layer, decided once.
 
 ```ts
 class UserService extends RestStd {
@@ -29,11 +33,18 @@ a confirmation step, and its own invalidation — typed from the service method.
 ## What it decides
 
 - **Transport.** One class per resource, eleven inherited methods, typed errors
-  out of every call.
+  out of every call, normalised across four common API shapes.
 - **Session.** Access token in memory, refresh in an `HttpOnly` cookie, one
   refresh in flight with the rest queued behind it.
 - **Non-CRUD operations.** Permission, confirmation, notification and
   invalidation declared next to the operation instead of in the view.
+- **Realtime.** A reconnection state machine with backoff, a circuit breaker and
+  a token refresh when the stream rejects one — transport injected, so it works
+  over SSE, a WebSocket or anything else.
+- **Data kept in the browser.** Encrypted under a non-extractable key, with the
+  scope of that protection written down rather than implied.
+- **The small things that bite.** Idempotency keys, contextual headers, a shared
+  signal for when the API is unreachable.
 
 ## What it leaves alone
 
