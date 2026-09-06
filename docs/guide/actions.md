@@ -75,22 +75,24 @@ four functions where the mutations are created:
 import { createDomainMutations } from '@arex95/phalanx';
 import { userKeys } from '../entities/user.keys';
 
-const userMutations = createDomainMutations({
-    service: UserService,
-    keys: userKeys,
+export function useUserMutations() {
+    return createDomainMutations({
+        service: UserService,
+        keys: userKeys,
 
-    checkPermission: (permission) => auth.can(permission),
-    translate: (key) => i18n.t(key),
-    requestConfirmation: (request, onAccept, onReject) =>
-        confirm.require({
-            message: request.message,
-            header: request.header,
-            accept: onAccept,
-            reject: onReject
-        }),
-    notify: ({ severity, message, error }) =>
-        toast.add({ severity, detail: extractErrorMessage(error, message) })
-});
+        checkPermission: (permission) => auth.can(permission),
+        translate: (key) => i18n.t(key),
+        requestConfirmation: (request, onAccept, onReject) =>
+            confirm.require({
+                message: request.message,
+                header: request.header,
+                accept: onAccept,
+                reject: onReject
+            }),
+        notify: ({ severity, message, error }) =>
+            toast.add({ severity, detail: extractErrorMessage(error, message) })
+    });
+}
 ```
 
 ::: tip The declared key is the fallback, not the message
@@ -143,6 +145,17 @@ configActions({
 
 Resolution is per function: a module that passes its own `requestConfirmation`
 overrides that one and still inherits the registered translator and notifier.
+
+::: danger Register it before the first `use<X>()`
+The four are read when a domain object is built, not when an action fires, so
+anything registered afterwards is ignored by every domain already constructed —
+silently, since an unregistered function only disables its concern.
+
+Call it in the **setup body** of your root component, not in `onMounted`: a
+parent's setup runs before any routed view's setup, while a parent's `onMounted`
+runs *after* its children have mounted. `main.ts`, before `app.mount()`, is
+equally safe.
+:::
 
 ::: warning
 `configActions` is module-level state, one set per process. That suits a browser

@@ -78,24 +78,41 @@ export class UserService extends RestStd {
 import { createDomainQueries, createDomainMutations, createModelKeys } from '@arex95/phalanx';
 import { UserService } from './UserService';
 
-const userKeys = createModelKeys('admin:user');
+export const userKeys = createModelKeys('admin:user');
 
-export const userQueries = createDomainQueries({ service: UserService, keys: userKeys });
-export const userMutations = createDomainMutations({ service: UserService, keys: userKeys });
+export function useUsers() {
+    return {
+        queries: createDomainQueries({ service: UserService, keys: userKeys }),
+        mutations: createDomainMutations({ service: UserService, keys: userKeys })
+    };
+}
 ```
 
 Both objects expose the CRUD operations and every custom method defined on the
-service. `suspend` becomes `userQueries.suspend` and `userMutations.suspend`,
-typed from the method signature.
+service. `suspend` becomes `queries.suspend` and `mutations.suspend`, typed from
+the method signature.
+
+::: warning Build the domain inside `setup()`, not at module scope
+Both factories call `useQueryClient()`, so they need Vue's injection context. A
+module-level `export const userQueries = createDomainQueries(…)` runs at import
+time and throws *"vue-query hooks can only be used inside setup() function"*
+before your first component renders. Wrapping them in a function — the
+`useUsers()` above — is the whole fix; call it from a component's `setup`.
+
+The keys are the exception, and deliberately so: they are plain strings with no
+injection context, so they stay a module-level export that anything can import.
+:::
 
 ## Use them
 
 ```vue
 <script setup lang="ts">
-import { userQueries, userMutations } from '@/domain/users';
+import { useUsers } from '@/domain/users';
 
-const { data, isPending, error } = userQueries.getAll();
-const { mutate: createUser } = userMutations.create;
+const { queries, mutations } = useUsers();
+
+const { data, isPending, error } = queries.getAll();
+const { mutate: createUser } = mutations.create;
 </script>
 
 <template>

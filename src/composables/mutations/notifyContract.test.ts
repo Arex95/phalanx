@@ -225,3 +225,74 @@ describe('a view keeping its own handler', () => {
         expect(notify).not.toHaveBeenCalled();
     });
 });
+
+/**
+ * `notifyOptions` is documented as passed through untouched. A consumer is
+ * relying on that for more than a UI option: they carry a domain error-code
+ * map in it and unpack it in their own `notify`, because the generic extractor
+ * would otherwise drop the specific reason the backend refused. Nothing here
+ * pinned that, so a future version could reasonably "tidy" the value — spread
+ * it, filter it to known UI keys, merge a default into it — and break them
+ * silently. These assertions make untouched mean untouched.
+ */
+describe('`notifyOptions` reaches `notify` untouched', () => {
+    it('arrives as the same object, with non-UI values intact', async () => {
+        const notify = vi.fn();
+        const errorMap = new Map([['waitlist.cap_reached', 'The waitlist is full']]);
+        const notifyOptions = {
+            errorMap,
+            group: 'waitlist',
+            resolve: (code: string) => errorMap.get(code)
+        };
+
+        const h = withSetup(() =>
+            createDomainMutations({
+                service: failingService(),
+                keys,
+                notify,
+                translate: (k) => `translated:${k}`,
+                actions: { create: { errorMessageKey: 'widget.create.failed', notifyOptions } }
+            })
+        );
+        harness = h;
+
+        const mutations = h.result as unknown as {
+            create: { mutateAsync: (v: unknown) => Promise<unknown> };
+        };
+        await expect(mutations.create.mutateAsync({ name: 'x' })).rejects.toThrow();
+        await vi.waitFor(() => expect(notify).toHaveBeenCalled());
+
+        const request = notify.mock.calls[0][0] as NotifyRequest;
+
+        // Identity, not equality: no copy, no spread, no filtering.
+        expect(request.extra).toBe(notifyOptions);
+
+        // Values a notification library would never understand survive, which
+        // is the whole point of the escape hatch.
+        const extra = request.extra as typeof notifyOptions;
+        expect(extra.errorMap).toBe(errorMap);
+        expect(extra.resolve('waitlist.cap_reached')).toBe('The waitlist is full');
+    });
+
+    it('is absent, not an empty object, when nothing was declared', async () => {
+        const notify = vi.fn();
+        const h = withSetup(() =>
+            createDomainMutations({
+                service: failingService(),
+                keys,
+                notify,
+                translate: (k) => `translated:${k}`,
+                actions: { create: { errorMessageKey: 'widget.create.failed' } }
+            })
+        );
+        harness = h;
+
+        const mutations = h.result as unknown as {
+            create: { mutateAsync: (v: unknown) => Promise<unknown> };
+        };
+        await expect(mutations.create.mutateAsync({ name: 'x' })).rejects.toThrow();
+        await vi.waitFor(() => expect(notify).toHaveBeenCalled());
+
+        expect((notify.mock.calls[0][0] as NotifyRequest).extra).toBeUndefined();
+    });
+});

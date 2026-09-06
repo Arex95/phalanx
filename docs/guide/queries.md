@@ -16,19 +16,27 @@ modules that both expose a `list` from colliding.
 ```ts
 import { createDomainQueries } from '@arex95/phalanx';
 
-export const userQueries = createDomainQueries({
-    service: UserService,
-    keys: userKeys
-});
+export function useUsers() {
+    // Inside a function: both factories need Vue's injection context.
+    return createDomainQueries({
+        service: UserService,
+        keys: userKeys
+    });
+}
 ```
 
 | Option | |
 |---|---|
 | `service` | a class extending `RestStd` |
-| `keys` | `{ all, one }` — the cache keys |
+| `keys` | the five cache keys — see [`createModelKeys`](#cache-keys) |
 | `model` | optional constructor to hydrate rows into |
 
 Returns `getAll`, `getOne`, `keys`, and one query per custom service method.
+The examples below assume it has been called from a component's `setup`:
+
+```ts
+const userQueries = useUsers();
+```
 
 ## `getAll`
 
@@ -118,7 +126,8 @@ const qc = useQueryClient();
 qc.invalidateQueries({ queryKey: [userQueries.keys.list] });
 ```
 
-Extra keys are named rather than spelled, so the namespace stays written once:
+A domain with a query beyond the five can name the extra, so the namespace
+stays written once:
 
 ```ts
 const keysWithExtras = createModelKeys('admin:user', ['archived']);
@@ -126,8 +135,28 @@ const keysWithExtras = createModelKeys('admin:user', ['archived']);
 qc.invalidateQueries({ queryKey: [keysWithExtras.archived] });   // 'admin:user:archived'
 ```
 
-A domain whose keys do not follow one prefix still declares the object by hand —
-anything satisfying `BaseModelKeys` works.
+::: warning `extras` only fits when the suffix *is* the name
+The value is built as `` `${namespace}:${name}` ``, so an extra is useful only
+where the key you want happens to be the property name verbatim. In practice it
+often is not: property names follow the method (`getUnreadCount`), while key
+values follow the cache's own vocabulary (`unread-count`), and the two do not
+meet. One panel that adopted this had six extra keys and `extras` derived none
+of them.
+
+That is not a fallback, it is the normal case. Write the object by hand and keep
+`createModelKeys` for the five — anything satisfying `BaseModelKeys` is accepted,
+and the five are where the repetition actually was:
+
+```ts
+export const NotificationKeys = {
+    ...createModelKeys('notification:notification'),
+    getUnreadCount: 'notification:notification:unread-count'
+};
+```
+:::
+
+A domain whose keys do not follow one prefix at all declares the whole object by
+hand, the same way.
 
 ## Hydrating rows
 
@@ -140,7 +169,8 @@ class User {
     get displayName() { return `${this.firstName} ${this.lastName}`; }
 }
 
-const userQueries = createDomainQueries({ service: UserService, keys: userKeys, model: User });
+const useUsersWithModel = () =>
+    createDomainQueries({ service: UserService, keys: userKeys, model: User });
 ```
 
 `getAll` then resolves to `User[]` and `getOne` to `User | null`. Without

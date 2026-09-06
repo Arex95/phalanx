@@ -105,6 +105,35 @@ encrypted storage and a test suite.
   Reported by the same panel. Additive: nothing that compiled before stops
   compiling.
 
+- **The guide built domain objects at module scope, which cannot work.** Both
+  factories call `useQueryClient()`, so `export const userQueries =
+  createDomainQueries(…)` runs at import time and throws *"vue-query hooks can
+  only be used inside setup() function"* — on the getting-started page, in the
+  first example a new consumer copies. Every page now wraps the factories in a
+  `use<X>()` function, and getting-started says why. The keys stay a
+  module-level export: they are plain strings, and things outside the
+  composable import them.
+
+- **`configActions` had no ordering note.** The four functions are resolved when
+  a domain object is built, not when an action fires, so registering afterwards
+  is ignored by every domain already constructed — and silently, since an
+  unregistered function only disables its concern. Documented, along with why
+  the root component's setup body works and `onMounted` does not.
+
+- **`createModelKeys` extras oversold.** The guide presented named extras as the
+  general answer for a sixth key. The value is `` `${namespace}:${name}` ``, so
+  it only fits where the suffix is the property name verbatim — and real key
+  names follow the method (`getUnreadCount`) while values follow the cache's
+  vocabulary (`unread-count`). A panel with six extra keys derived none of
+  them. The guide now says so and shows the spread-and-add form as the normal
+  case, not a fallback. The five base keys are unchanged; that part carried.
+
+- **`notifyOptions` pass-through is now pinned by a test.** It is documented as
+  passed through untouched, and a consumer relies on that for more than a UI
+  option — they carry a domain error-code map in it. Nothing asserted it, so
+  spreading or filtering the value would have broken them silently. The test
+  checks object identity, not equality.
+
 - **The documentation contradicted the implementation.** Every example wrote
   the action as an arrow while `defineAction`'s own comment forbade it. The
   arrow is not merely discouraged: it ignores the `.bind(service)` the

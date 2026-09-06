@@ -31,8 +31,12 @@ class UserService extends RestStd {
 }
 
 const userKeys = createModelKeys('admin:user');
-export const userQueries = createDomainQueries({ service: UserService, keys: userKeys });
-export const userMutations = createDomainMutations({ service: UserService, keys: userKeys });
+export function useUsers() {
+    return {
+        queries: createDomainQueries({ service: UserService, keys: userKeys }),
+        mutations: createDomainMutations({ service: UserService, keys: userKeys })
+    };
+}
 ```
 
 `userMutations.suspend` is a TanStack mutation with an `isAuthorized` computed,

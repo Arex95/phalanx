@@ -170,11 +170,13 @@ export const actionDefaults = {
 ```
 
 ```ts
-const mutations = createDomainMutations({
-    service: WorkTypeService,
-    keys: WorkTypeKeys,
-    ...actionDefaults
-});
+export function useWorkTypeMutations() {
+    return createDomainMutations({
+        service: WorkTypeService,
+        keys: WorkTypeKeys,
+        ...actionDefaults
+    });
+}
 ```
 
 A module that forgets one of these does not fail — the concern is silently

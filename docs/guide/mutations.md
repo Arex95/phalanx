@@ -16,10 +16,19 @@ modules that both expose a `list` from colliding.
 ```ts
 import { createDomainMutations } from '@arex95/phalanx';
 
-export const userMutations = createDomainMutations({
-    service: UserService,
-    keys: userKeys
-});
+export function useUserMutations() {
+    // Inside a function: both factories need Vue's injection context.
+    return createDomainMutations({
+        service: UserService,
+        keys: userKeys
+    });
+}
+```
+
+The examples below assume it has been called from a component's `setup`:
+
+```ts
+const userMutations = useUserMutations();
 ```
 
 Returns `create`, `update`, `patch`, `remove`, and one mutation per custom
