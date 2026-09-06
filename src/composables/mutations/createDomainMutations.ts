@@ -61,7 +61,6 @@ export interface CreateDomainMutationsConfig<
 > extends ActionInjection {
     service: TService;
     keys: BaseModelKeys;
-    module?: string;
     model?: ModelConstructor<TEntity, TDTO>;
     invalidate?: Record<string, InvalidateEntry>;
     /**
@@ -111,7 +110,6 @@ export function createDomainMutations<
     // `CrudAugment` can discriminate per-method in the return type; a
     // generic type parameter can't be indexed the way a concrete type can.
     const crudActions: CrudActions = config.actions ?? {};
-    void (config.module ?? keys.list.split(':')[0]);
     const queryClient = useQueryClient();
     const ownerScope = getCurrentScope() ?? effectScope();
     // Per-call over global over default, resolved one function at a time: a

@@ -46,8 +46,10 @@ class RestStd {
 ## Composables
 
 ```ts
-createDomainQueries({ service, keys, module?, model?, defaultOptions? })
-createDomainMutations({ service, keys, module?, model?, invalidate?, actions?,
+createModelKeys(namespace: string, extras?: readonly string[]): ModelKeys
+
+createDomainQueries({ service, keys, model?, defaultOptions? })
+createDomainMutations({ service, keys, model?, invalidate?, actions?,
                         extraInvalidateKeys?, ...ActionInjection })
 useAuth(fetcher?): { login, logout }
 ```

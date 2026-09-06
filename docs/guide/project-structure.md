@@ -56,17 +56,12 @@ Generated from the schema where you have one — see
 
 ```ts
 // entities/work-type.keys.ts
-import type { BaseModelKeys } from '@arex95/phalanx';
+import { createModelKeys } from '@arex95/phalanx';
 
-export const WorkTypeKeys = {
-    list: 'catalog:work-type:list',
-    item: 'catalog:work-type:item'
-} as const satisfies BaseModelKeys;
+export const WorkTypeKeys = createModelKeys('catalog:work-type');
 ```
 
-Namespaced (`catalog:`) so two modules exposing a `list` do not collide, and
-`as const satisfies` so a typo is a compile error rather than a cache that
-silently never invalidates.
+Namespaced (`catalog:`) so two modules exposing a `list` do not collide.
 
 ::: tip Why this file exists at all
 A cache key written inline in three places is three chances to write it

@@ -22,7 +22,7 @@ pnpm add vue axios @tanstack/vue-query jwt-decode
 
 ```ts
 import {
-    RestStd, defineAction, createDomainQueries, createDomainMutations, type BaseModelKeys
+    RestStd, defineAction, createDomainQueries, createDomainMutations, createModelKeys
 } from '@arex95/phalanx';
 
 class UserService extends RestStd {
@@ -37,13 +37,7 @@ class UserService extends RestStd {
     );
 }
 
-const userKeys = {
-    list: 'admin:user:list',
-    item: 'admin:user:item',
-    selected: 'admin:user:selected',
-    collection: 'admin:user:collection',
-    filter: 'admin:user:filter'
-} as const satisfies BaseModelKeys;
+const userKeys = createModelKeys('admin:user');
 export const userQueries = createDomainQueries({ service: UserService, keys: userKeys });
 export const userMutations = createDomainMutations({ service: UserService, keys: userKeys });
 ```

@@ -75,16 +75,10 @@ export class UserService extends RestStd {
 ## Derive the composables
 
 ```ts
-import { createDomainQueries, createDomainMutations, type BaseModelKeys } from '@arex95/phalanx';
+import { createDomainQueries, createDomainMutations, createModelKeys } from '@arex95/phalanx';
 import { UserService } from './UserService';
 
-const userKeys = {
-    list: 'admin:user:list',
-    item: 'admin:user:item',
-    selected: 'admin:user:selected',
-    collection: 'admin:user:collection',
-    filter: 'admin:user:filter'
-} as const satisfies BaseModelKeys;
+const userKeys = createModelKeys('admin:user');
 
 export const userQueries = createDomainQueries({ service: UserService, keys: userKeys });
 export const userMutations = createDomainMutations({ service: UserService, keys: userKeys });

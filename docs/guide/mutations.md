@@ -3,21 +3,15 @@
 `createDomainMutations` turns a service into TanStack mutations.
 
 ```ts
-import type { BaseModelKeys } from '@arex95/phalanx';
+import { createModelKeys } from '@arex95/phalanx';
 
-const userKeys = {
-    list: 'admin:user:list',
-    item: 'admin:user:item',
-    selected: 'admin:user:selected',
-    collection: 'admin:user:collection',
-    filter: 'admin:user:filter'
-} as const satisfies BaseModelKeys;
+const userKeys = createModelKeys('admin:user');
+// { list: 'admin:user:list', item: 'admin:user:item', selected: …, collection: …, filter: … }
 ```
 
-The five keys are required. Namespacing them (`admin:user:`) keeps two modules
-that both expose a `list` from colliding, and `as const satisfies BaseModelKeys`
-turns a typo into a compile error rather than a cache that silently never
-invalidates.
+The five are required and always the same shape, so writing them out is five
+chances to typo a string nothing checks. Namespacing (`admin:user`) keeps two
+modules that both expose a `list` from colliding.
 
 ```ts
 import { createDomainMutations } from '@arex95/phalanx';

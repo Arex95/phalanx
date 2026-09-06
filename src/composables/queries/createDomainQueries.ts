@@ -90,8 +90,11 @@ export interface QueryDefaults {
 
 export interface CreateDomainQueriesConfig<TEntity, TDTO, TService extends RestStdService> {
     service: TService;
+    /**
+     * The five, plus any extra a custom method's cache key needs — looked up by
+     * that method's name in `keyFor`. `createModelKeys` builds one.
+     */
     keys: BaseModelKeys & Record<string, string | undefined>;
-    module?: string;
     model?: ModelConstructor<TEntity, TDTO>;
     /**
      * Per query, not one value per domain — a module routinely wants a long
@@ -168,7 +171,6 @@ export function createDomainQueries<
     function defaults(query: string): QueryDefaults {
         return config.defaultOptions?.[query] ?? {};
     }
-    void config.module;
 
     function keyFor(methodName: string, args: unknown) {
         const override = (keys as unknown as Record<string, string | undefined>)[methodName];

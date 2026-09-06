@@ -3,21 +3,15 @@
 `createDomainQueries` turns a service into TanStack Query composables.
 
 ```ts
-import type { BaseModelKeys } from '@arex95/phalanx';
+import { createModelKeys } from '@arex95/phalanx';
 
-const userKeys = {
-    list: 'admin:user:list',
-    item: 'admin:user:item',
-    selected: 'admin:user:selected',
-    collection: 'admin:user:collection',
-    filter: 'admin:user:filter'
-} as const satisfies BaseModelKeys;
+const userKeys = createModelKeys('admin:user');
+// { list: 'admin:user:list', item: 'admin:user:item', selected: …, collection: …, filter: … }
 ```
 
-The five keys are required. Namespacing them (`admin:user:`) keeps two modules
-that both expose a `list` from colliding, and `as const satisfies BaseModelKeys`
-turns a typo into a compile error rather than a cache that silently never
-invalidates.
+The five are required and always the same shape, so writing them out is five
+chances to typo a string nothing checks. Namespacing (`admin:user`) keeps two
+modules that both expose a `list` from colliding.
 
 ```ts
 import { createDomainQueries } from '@arex95/phalanx';
@@ -32,7 +26,6 @@ export const userQueries = createDomainQueries({
 |---|---|
 | `service` | a class extending `RestStd` |
 | `keys` | `{ all, one }` — the cache keys |
-| `module` | optional namespace prefixed to every key |
 | `model` | optional constructor to hydrate rows into |
 
 Returns `getAll`, `getOne`, `keys`, and one query per custom service method.
@@ -125,11 +118,16 @@ const qc = useQueryClient();
 qc.invalidateQueries({ queryKey: [userQueries.keys.list] });
 ```
 
-`module` namespaces them when two modules expose the same resource:
+Extra keys are named rather than spelled, so the namespace stays written once:
 
 ```ts
-createDomainQueries({ service: UserService, keys: userKeys, module: 'admin' });
+const keysWithExtras = createModelKeys('admin:user', ['archived']);
+
+qc.invalidateQueries({ queryKey: [keysWithExtras.archived] });   // 'admin:user:archived'
 ```
+
+A domain whose keys do not follow one prefix still declares the object by hand —
+anything satisfying `BaseModelKeys` works.
 
 ## Hydrating rows
 

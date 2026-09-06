@@ -4,6 +4,13 @@ Three gaps reported by a panel adopting the actions layer, which had it declared
 in one composable out of seventeen and the four concerns rewritten by hand in
 fifty-two files.
 
+## Removed
+
+- **`module`** on both factories. It was documented as "a namespace prefixed to
+  every key" and did nothing — `void config.module` in both. A consumer setting
+  it believed two modules exposing the same resource were separated, and they
+  were not, silently. `createModelKeys` does what it claimed to.
+
 ## Added
 
 - **`NotifyRequest` carries the outcome.** `error` on a failure, `data` on a
@@ -28,6 +35,25 @@ fifty-two files.
   through `createDomainMutations`'s config, so every domain restated the same
   four. Resolution is per function — a module can override one and inherit the
   rest — and a per-call config still wins.
+
+- **`createModelKeys(namespace, extras?)`** builds a domain's five cache keys
+  from one prefix:
+
+  ```ts
+  const userKeys = createModelKeys('admin:user');
+  // { list: 'admin:user:list', item: 'admin:user:item', … }
+
+  createModelKeys('admin:user', ['archived']).archived; // 'admin:user:archived', typed
+  ```
+
+  The five are required and always the same shape, so writing them out is five
+  chances to typo a string nothing checks — and the failure is silent: the
+  mutation succeeds while the list keeps showing stale rows. Declaring the
+  object by hand still works; this only removes the case where the keys follow
+  one prefix.
+
+  It refuses an empty namespace, and refuses an extra that would overwrite one
+  of the five rather than merging it.
 
 - **`defaultOptions` on `createDomainQueries`.** Cache policy declared at the
   domain instead of at each call site:
