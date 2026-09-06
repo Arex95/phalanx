@@ -238,7 +238,7 @@ describe('createDomainMutations — actions config for CRUD methods', () => {
         const { result } = harness as unknown as { result: ReturnType<typeof createDomainMutations> };
 
         await result.create.mutateAsync({ name: 'X' });
-        expect(notify).toHaveBeenCalledWith({ severity: 'success', message: 't:widgets.created', extra: undefined });
+        expect(notify).toHaveBeenCalledWith(expect.objectContaining({ severity: 'success', message: 't:widgets.created', extra: undefined }));
     });
 
     it('fires the error notification when the mutation fails', async () => {
@@ -255,7 +255,7 @@ describe('createDomainMutations — actions config for CRUD methods', () => {
         const { result } = harness as unknown as { result: ReturnType<typeof createDomainMutations> };
 
         await expect(result.create.mutateAsync({ name: 'X' })).rejects.toThrow('boom');
-        expect(notify).toHaveBeenCalledWith({ severity: 'error', message: 'widgets.createFailed', extra: undefined });
+        expect(notify).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error', message: 'widgets.createFailed', extra: undefined }));
     });
 
     it('does not notify at all when no successMessageKey/errorMessageKey is configured', async () => {
@@ -384,7 +384,7 @@ describe('createDomainMutations — error notifications for update/patch/remove/
         );
         const { result } = harness as unknown as { result: ReturnType<typeof createDomainMutations> };
         await expect(result.update.mutateAsync({ id: '1', data: {} })).rejects.toThrow('boom');
-        expect(notify).toHaveBeenCalledWith({ severity: 'error', message: 'x.updateFailed', extra: undefined });
+        expect(notify).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error', message: 'x.updateFailed', extra: undefined }));
     });
 
     it('notifies on patch error', async () => {
@@ -395,7 +395,7 @@ describe('createDomainMutations — error notifications for update/patch/remove/
         );
         const { result } = harness as unknown as { result: ReturnType<typeof createDomainMutations> };
         await expect(result.patch.mutateAsync({ id: '1', data: {} })).rejects.toThrow('boom');
-        expect(notify).toHaveBeenCalledWith({ severity: 'error', message: 'x.patchFailed', extra: undefined });
+        expect(notify).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error', message: 'x.patchFailed', extra: undefined }));
     });
 
     it('notifies on remove error', async () => {
@@ -406,7 +406,7 @@ describe('createDomainMutations — error notifications for update/patch/remove/
         );
         const { result } = harness as unknown as { result: ReturnType<typeof createDomainMutations> };
         await expect(result.remove.mutateAsync('1')).rejects.toThrow('boom');
-        expect(notify).toHaveBeenCalledWith({ severity: 'error', message: 'x.removeFailed', extra: undefined });
+        expect(notify).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error', message: 'x.removeFailed', extra: undefined }));
     });
 
     it('notifies on a custom (defineAction) method error using its errorMessageKey', async () => {
@@ -421,7 +421,7 @@ describe('createDomainMutations — error notifications for update/patch/remove/
             result: { customThing: { mutateAsync: () => Promise<unknown> } };
         };
         await expect(result.customThing.mutateAsync()).rejects.toThrow('boom');
-        expect(notify).toHaveBeenCalledWith({ severity: 'error', message: 'x.customFailed', extra: undefined });
+        expect(notify).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error', message: 'x.customFailed', extra: undefined }));
     });
 });
 

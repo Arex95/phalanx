@@ -1,6 +1,6 @@
 {
   "name": "@arex95/phalanx",
-  "version": "6.0.0",
+  "version": "6.1.0",
   "description": "Headless framework for admin panels on Vue: typed REST services with derived TanStack queries and mutations, declarative actions, session handling with an HttpOnly refresh cookie, resilient realtime connections, encrypted browser storage and typed errors.",
   "main": "dist/index.mjs",
   "module": "dist/index.mjs",
@@ -52,7 +52,7 @@
     "axios",
     "jwt"
   ],
-  "author": "Arturo Rafael Serrano Girón",
+  "author": "Arturo Rafael Serrano Gir\u00f3n",
   "license": "MIT",
   "peerDependencies": {
     "@tanstack/vue-query": ">=5.0.0",

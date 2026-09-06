@@ -58,6 +58,7 @@ declare const useRoute: () => { params: Record<string, string> };
 declare const activeBranch: { value?: { uuid: string } };
 declare const form: Record<string, string>;
 declare const openStream: any;
+declare function extractErrorMessage(e: unknown, fallback: string): string;
 
 declare const filters: Record<string, unknown>;
 declare const data: Record<string, unknown>;

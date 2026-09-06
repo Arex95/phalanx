@@ -76,11 +76,28 @@ const userMutations = createDomainMutations({
             accept: onAccept,
             reject: onReject
         }),
-    notify: ({ severity, message }) => toast.add({ severity, detail: message })
+    notify: ({ severity, message, error }) =>
+        toast.add({ severity, detail: extractErrorMessage(error, message) })
 });
 ```
 
+::: tip The declared key is the fallback, not the message
+`notify` receives the rejection alongside the translated key, so a handler can
+prefer what the API said and fall back to the declaration when it said nothing.
+
+Without that, a view had to keep its own `onError` to reach the server's reason
+— and since both handlers run, one failure produced two notifications.
+:::
+
 ```ts
+interface NotifyRequest {
+    severity: 'success' | 'error';
+    message: string;              // the declared key, translated
+    extra?: Record<string, unknown>;
+    error?: unknown;              // the rejection, on 'error'
+    data?: unknown;               // what the mutation resolved to, on 'success'
+}
+
 interface ActionInjection {
     checkPermission?: (permission: string) => boolean;
     requestConfirmation?: (

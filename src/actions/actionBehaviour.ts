@@ -22,8 +22,23 @@ export interface ConfirmationRequest {
 
 export interface NotifyRequest {
     severity: 'success' | 'error';
+    /** The declared message key, resolved through `translate`. */
     message: string;
     extra?: Record<string, unknown>;
+    /**
+     * The rejection, on `severity: 'error'`.
+     *
+     * Present so a handler can prefer what the server said over the declared
+     * message — the API's own reason is the useful half of an error toast, and
+     * without this a consumer had to keep its own `onError` on every call site
+     * to reach it, which produced two notifications for one failure.
+     *
+     * Typed `unknown` because a fetcher may reject with anything; narrow it
+     * with `instanceof BaseError` or pass it to `normalizeHttpError`.
+     */
+    error?: unknown;
+    /** What the mutation resolved to, on `severity: 'success'`. */
+    data?: unknown;
 }
 
 export interface ActionInjection {

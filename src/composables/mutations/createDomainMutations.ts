@@ -156,10 +156,19 @@ export function createDomainMutations<
      * same rule for CRUD (via the `actions` config) and custom methods
      * (via `defineAction`). Never replaces a view's own `onSuccess`/
      * `onError` passed to `.mutate()`; both run. */
-    function notifyForOutcome(meta: ActionMeta | undefined, severity: 'success' | 'error') {
+    function notifyForOutcome(
+        meta: ActionMeta | undefined,
+        severity: 'success' | 'error',
+        outcome?: unknown
+    ) {
         const key = severity === 'success' ? meta?.successMessageKey : meta?.errorMessageKey;
         if (!key) return;
-        notify({ severity, message: translate(key), extra: meta?.notifyOptions });
+        notify({
+            severity,
+            message: translate(key),
+            extra: meta?.notifyOptions,
+            ...(severity === 'error' ? { error: outcome } : { data: outcome })
+        });
     }
 
     /** Applies `withActionBehaviour` when this CRUD method has a declared
@@ -197,11 +206,11 @@ export function createDomainMutations<
                 const response = await service.create<ApiResponse<TDTO>, Partial<TDTO>>({ data });
                 return toEntity(response?.data);
             },
-            onSuccess: () => {
+            onSuccess: (data) => {
                 invalidateForMethod('create', crudActions.create?.invalidate);
-                notifyForOutcome(crudActions.create, 'success');
+                notifyForOutcome(crudActions.create, 'success', data);
             },
-            onError: () => notifyForOutcome(crudActions.create, 'error')
+            onError: (error) => notifyForOutcome(crudActions.create, 'error', error)
         })
     );
 
@@ -215,11 +224,11 @@ export function createDomainMutations<
                 });
                 return toEntity(response?.data);
             },
-            onSuccess: () => {
+            onSuccess: (data) => {
                 invalidateForMethod('update', crudActions.update?.invalidate);
-                notifyForOutcome(crudActions.update, 'success');
+                notifyForOutcome(crudActions.update, 'success', data);
             },
-            onError: () => notifyForOutcome(crudActions.update, 'error')
+            onError: (error) => notifyForOutcome(crudActions.update, 'error', error)
         })
     );
 
@@ -233,11 +242,11 @@ export function createDomainMutations<
                 });
                 return toEntity(response?.data);
             },
-            onSuccess: () => {
+            onSuccess: (data) => {
                 invalidateForMethod('patch', crudActions.patch?.invalidate);
-                notifyForOutcome(crudActions.patch, 'success');
+                notifyForOutcome(crudActions.patch, 'success', data);
             },
-            onError: () => notifyForOutcome(crudActions.patch, 'error')
+            onError: (error) => notifyForOutcome(crudActions.patch, 'error', error)
         })
     );
 
@@ -248,11 +257,11 @@ export function createDomainMutations<
                 await service.delete({ id });
                 return id;
             },
-            onSuccess: () => {
+            onSuccess: (data) => {
                 invalidateForMethod('remove', crudActions.remove?.invalidate);
-                notifyForOutcome(crudActions.remove, 'success');
+                notifyForOutcome(crudActions.remove, 'success', data);
             },
-            onError: () => notifyForOutcome(crudActions.remove, 'error')
+            onError: (error) => notifyForOutcome(crudActions.remove, 'error', error)
         })
     );
 
@@ -278,11 +287,11 @@ export function createDomainMutations<
             const serviceMethod = (rawMethod as (a?: unknown) => Promise<unknown>).bind(service);
             const mutation = ownerScope.run(() => useMutation({
                 mutationFn: (args: unknown) => serviceMethod(args),
-                onSuccess: () => {
+                onSuccess: (data) => {
                     invalidateForMethod(methodName, meta?.invalidate);
-                    notifyForOutcome(meta, 'success');
+                    notifyForOutcome(meta, 'success', data);
                 },
-                onError: () => notifyForOutcome(meta, 'error')
+                onError: (error) => notifyForOutcome(meta, 'error', error)
             }, queryClient)) as unknown as AnyMutation;
 
             const result = meta ? withActionBehaviour(mutation, meta, injection, ownerScope) : mutation;

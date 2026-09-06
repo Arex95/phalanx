@@ -7,11 +7,12 @@ import type { NotifyRequest } from '@/actions';
 import type { RestStdService } from '@/types';
 
 /**
- * What a consumer's `notify` can actually see when a mutation fails, and
- * whether a view keeping its own `onError` produces a second toast.
+ * What a consumer's `notify` can see when a mutation settles.
  *
- * Written before changing anything: the consuming panel reported both as a
- * reading of the source, and a reading is not an observation.
+ * Written first as a record of the defect — `notify` received no reference to
+ * the rejection, so a panel had to keep its own `onError` on every call site to
+ * show what the server said, and then received two notifications for one
+ * failure. These assertions now pin the contract that replaced it.
  */
 function withSetup<T>(composable: () => T) {
     let result!: T;
@@ -72,7 +73,7 @@ afterEach(() => {
 });
 
 describe('what `notify` receives on failure', () => {
-    it('CRUD: the request carries no reference to the error', async () => {
+    it('CRUD: the request carries the rejection', async () => {
         const notify = vi.fn();
         const h = withSetup(() =>
             createDomainMutations({
@@ -85,7 +86,7 @@ describe('what `notify` receives on failure', () => {
         );
         harness = h;
 
-        const mutations = h.result as { create: { mutateAsync: (v: unknown) => Promise<unknown> } };
+        const mutations = h.result as unknown as { create: { mutateAsync: (v: unknown) => Promise<unknown> } };
         await expect(mutations.create.mutateAsync({ name: 'x' })).rejects.toThrow();
         await vi.waitFor(() => expect(notify).toHaveBeenCalled());
 
@@ -93,11 +94,33 @@ describe('what `notify` receives on failure', () => {
         expect(request.severity).toBe('error');
         expect(request.message).toBe('translated:widget.create.failed');
 
-        // The finding, stated as an assertion: nothing in the request reaches
-        // the failure, so a consumer cannot show the server's own message.
-        const serialised = JSON.stringify(request);
-        expect(serialised).not.toContain('That slot is already taken');
-        expect(Object.keys(request).some((k) => /error|cause|failure/i.test(k))).toBe(false);
+        // The declared key is the fallback; the rejection is what lets a
+        // handler show the reason the API actually gave.
+        expect(request.error).toBeInstanceOf(ApiFailure);
+        expect((request.error as ApiFailure).serverMessage).toBe('That slot is already taken');
+    });
+
+    it('the declared message stays available as the fallback', async () => {
+        const notify = vi.fn();
+        const h = withSetup(() =>
+            createDomainMutations({
+                service: failingService(),
+                keys,
+                notify,
+                translate: (k) => `translated:${k}`,
+                actions: { create: { errorMessageKey: 'widget.create.failed' } }
+            })
+        );
+        harness = h;
+
+        const mutations = h.result as unknown as { create: { mutateAsync: (v: unknown) => Promise<unknown> } };
+        await expect(mutations.create.mutateAsync({ name: 'x' })).rejects.toThrow();
+        await vi.waitFor(() => expect(notify).toHaveBeenCalled());
+
+        // What a consumer's handler does with both, in one line.
+        const { message, error } = notify.mock.calls[0][0] as NotifyRequest;
+        const shown = error instanceof ApiFailure ? error.serverMessage : message;
+        expect(shown).toBe('That slot is already taken');
     });
 
     it('custom action: same, through defineAction', async () => {
@@ -112,13 +135,39 @@ describe('what `notify` receives on failure', () => {
         );
         harness = h;
 
-        const mutations = h.result as { suspend: { mutateAsync: (v?: unknown) => Promise<unknown> } };
+        const mutations = h.result as unknown as { suspend: { mutateAsync: (v?: unknown) => Promise<unknown> } };
         await expect(mutations.suspend.mutateAsync(undefined)).rejects.toThrow();
         await vi.waitFor(() => expect(notify).toHaveBeenCalled());
 
         const request = notify.mock.calls[0][0] as NotifyRequest;
         expect(request.message).toBe('translated:widget.suspend.failed');
-        expect(JSON.stringify(request)).not.toContain('cannot be suspended');
+        expect((request.error as ApiFailure).serverMessage).toBe('This account cannot be suspended');
+    });
+
+    it('on success the request carries what the mutation resolved to', async () => {
+        const notify = vi.fn();
+        const service = failingService() as unknown as Record<string, unknown>;
+        service.create = vi.fn(async () => ({ success: true, message: '', data: { id: '7', name: 'ok' } }));
+
+        const h = withSetup(() =>
+            createDomainMutations({
+                service: service as unknown as RestStdService,
+                keys,
+                notify,
+                translate: (k) => k,
+                actions: { create: { successMessageKey: 'widget.create.ok' } }
+            })
+        );
+        harness = h;
+
+        const mutations = h.result as unknown as { create: { mutateAsync: (v: unknown) => Promise<unknown> } };
+        await mutations.create.mutateAsync({ name: 'ok' });
+        await vi.waitFor(() => expect(notify).toHaveBeenCalled());
+
+        const request = notify.mock.calls[0][0] as NotifyRequest;
+        expect(request.severity).toBe('success');
+        expect(request.error).toBeUndefined();
+        expect(request.data).toMatchObject({ id: '7' });
     });
 });
 
@@ -151,9 +200,11 @@ describe('a view keeping its own handler', () => {
         expect(notify).toHaveBeenCalledTimes(1);
         expect(viewOnError).toHaveBeenCalledTimes(1);
 
-        // And the view's handler *does* get the error — which is why the
-        // information exists in the system; it just never reaches `notify`.
+        // Both handlers see the same rejection. With `notify` able to reach it,
+        // a view no longer needs its own handler to show the server's reason —
+        // which is what makes removing the duplicate possible.
         expect(viewOnError.mock.calls[0][0]).toBeInstanceOf(ApiFailure);
+        expect((notify.mock.calls[0][0] as NotifyRequest).error).toBe(viewOnError.mock.calls[0][0]);
     });
 
     it('without a declared key, only the view is notified', async () => {

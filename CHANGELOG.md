@@ -1,3 +1,24 @@
+# 6.1.0 (2026-09-06)
+
+## Added
+
+- **`NotifyRequest` carries the outcome.** `error` on a failure, `data` on a
+  success, both optional. A handler can now prefer what the API said and fall
+  back to the declared message key:
+
+  ```ts
+  notify: ({ severity, message, error }) =>
+      toast.add({ severity, detail: extractErrorMessage(error, message) })
+  ```
+
+  Reported by a consuming panel adopting the actions layer. Without it the only
+  way to reach the server's reason was to keep an `onError` at the call site,
+  and since a view's handler and the declared notification both run, one
+  failure produced two notifications. That was the whole reason the panel could
+  not adopt `errorMessageKey`.
+
+  Additive: existing `notify` implementations are unaffected.
+
 # 6.0.0 (2026-09-03)
 
 **The package is now `@arex95/phalanx`.** `@arex95/vue-core` stops at 5.1.0 and
