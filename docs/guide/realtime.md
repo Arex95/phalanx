@@ -68,7 +68,7 @@ States: `idle`, `unauthenticated`, `offline`, `connecting`, `open`,
 
 ```ts
 new RealtimeConnection({
-    open,
+    open: openStream,
     backoff: { baseMs: 1_000, factor: 2, capMs: 30_000, maxAttempts: 3 }
 });
 ```

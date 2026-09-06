@@ -60,9 +60,12 @@ Phalanx does not own the dialog, the toast or the permission system. Provide
 four functions where the mutations are created:
 
 ```ts
+import { createDomainMutations } from '@arex95/phalanx';
+import { userKeys } from '../entities/user.keys';
+
 const userMutations = createDomainMutations({
     service: UserService,
-    keys: { all: 'users', one: 'user' },
+    keys: userKeys,
 
     checkPermission: (permission) => auth.can(permission),
     translate: (key) => i18n.t(key),
@@ -131,7 +134,7 @@ The same metadata applies to `create`, `update`, `patch` and `remove` through
 ```ts
 createDomainMutations({
     service: UserService,
-    keys,
+    keys: userKeys,
     actions: {
         remove: {
             permission: 'users.delete',

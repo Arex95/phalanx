@@ -3,11 +3,28 @@
 `createDomainQueries` turns a service into TanStack Query composables.
 
 ```ts
+import type { BaseModelKeys } from '@arex95/phalanx';
+
+const userKeys = {
+    list: 'admin:user:list',
+    item: 'admin:user:item',
+    selected: 'admin:user:selected',
+    collection: 'admin:user:collection',
+    filter: 'admin:user:filter'
+} as const satisfies BaseModelKeys;
+```
+
+The five keys are required. Namespacing them (`admin:user:`) keeps two modules
+that both expose a `list` from colliding, and `as const satisfies BaseModelKeys`
+turns a typo into a compile error rather than a cache that silently never
+invalidates.
+
+```ts
 import { createDomainQueries } from '@arex95/phalanx';
 
 export const userQueries = createDomainQueries({
     service: UserService,
-    keys: { all: 'users', one: 'user' }
+    keys: userKeys
 });
 ```
 
@@ -47,11 +64,14 @@ interface GetAllQueryOptions {
 
 ```ts
 const route = useRoute();
-const { data: user } = userQueries.getOne({ id: () => route.params.id });
+const id = computed(() => route.params.id as string);
+
+const { data: user } = userQueries.getOne({ id });
 ```
 
-The query is disabled while `id` is `null` or `undefined`, so it can be bound
-straight to a route parameter. Resolves to the entity or `null`.
+`id` takes a value or a `Ref`, so a `computed` binds it to a route parameter.
+The query stays disabled while it is `null` or `undefined`, which is what makes
+that binding safe on a page that has not resolved its route yet. Resolves to the entity or `null`.
 
 ## Custom queries
 
@@ -76,24 +96,27 @@ invalidation does not apply:
 import { useQueryClient } from '@tanstack/vue-query';
 
 const qc = useQueryClient();
-qc.invalidateQueries({ queryKey: [userQueries.keys.all] });
+qc.invalidateQueries({ queryKey: [userQueries.keys.list] });
 ```
 
 `module` namespaces them when two modules expose the same resource:
 
 ```ts
-createDomainQueries({ service: UserService, keys, module: 'admin' });
+createDomainQueries({ service: UserService, keys: userKeys, module: 'admin' });
 ```
 
 ## Hydrating rows
 
 ```ts
 class User {
+    firstName!: string;
+    lastName!: string;
+
     constructor(dto: UserDTO) { Object.assign(this, dto); }
     get displayName() { return `${this.firstName} ${this.lastName}`; }
 }
 
-const userQueries = createDomainQueries({ service: UserService, keys, model: User });
+const userQueries = createDomainQueries({ service: UserService, keys: userKeys, model: User });
 ```
 
 `getAll` then resolves to `User[]` and `getOne` to `User | null`. Without

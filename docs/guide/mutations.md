@@ -3,11 +3,28 @@
 `createDomainMutations` turns a service into TanStack mutations.
 
 ```ts
+import type { BaseModelKeys } from '@arex95/phalanx';
+
+const userKeys = {
+    list: 'admin:user:list',
+    item: 'admin:user:item',
+    selected: 'admin:user:selected',
+    collection: 'admin:user:collection',
+    filter: 'admin:user:filter'
+} as const satisfies BaseModelKeys;
+```
+
+The five keys are required. Namespacing them (`admin:user:`) keeps two modules
+that both expose a `list` from colliding, and `as const satisfies BaseModelKeys`
+turns a typo into a compile error rather than a cache that silently never
+invalidates.
+
+```ts
 import { createDomainMutations } from '@arex95/phalanx';
 
 export const userMutations = createDomainMutations({
     service: UserService,
-    keys: { all: 'users', one: 'user' }
+    keys: userKeys
 });
 ```
 
@@ -30,13 +47,13 @@ await mutateAsync({ id: '7', data: { name: 'Ada' } });
 
 ## Invalidation
 
-After a mutation succeeds, `keys.all` and `keys.one` are invalidated. Override
+After a mutation succeeds, `keys.list` and `keys.item` are invalidated. Override
 per method:
 
 ```ts
 createDomainMutations({
     service: UserService,
-    keys,
+    keys: userKeys,
     invalidate: {
         create: ['users', 'dashboard-stats'],   // added to the defaults
         patch:  { only: ['user'] }              // replaces them
@@ -90,5 +107,5 @@ With a `model` constructor, mutations resolve to an instance and accept
 `Partial<TDTO>` as input:
 
 ```ts
-createDomainMutations({ service: UserService, keys, model: User });
+createDomainMutations({ service: UserService, keys: userKeys, model: User });
 ```

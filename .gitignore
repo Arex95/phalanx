@@ -10,3 +10,4 @@ yalc.lock
 docs/.vitepress/dist
 docs/.vitepress/cache
 .vitepress/cache
+.docs-typecheck

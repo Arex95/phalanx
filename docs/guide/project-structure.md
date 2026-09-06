@@ -56,6 +56,8 @@ Generated from the schema where you have one — see
 
 ```ts
 // entities/work-type.keys.ts
+import type { BaseModelKeys } from '@arex95/phalanx';
+
 export const WorkTypeKeys = {
     list: 'catalog:work-type:list',
     item: 'catalog:work-type:item'

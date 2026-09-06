@@ -5,7 +5,7 @@ import tseslint from "typescript-eslint";
 import pluginVue from "eslint-plugin-vue";
 
 export default defineConfig([
-  { ignores: ["**/dist/**", "**/node_modules/**", "coverage/**", "**/.vitepress/cache/**"] },
+  { ignores: ["**/dist/**", "**/node_modules/**", "coverage/**", "**/.vitepress/cache/**", ".docs-typecheck/**"] },
   { files: ["**/*.{js,mjs,cjs,ts,vue}"] },
   { files: ["**/*.{js,mjs,cjs,ts,vue}"], languageOptions: { globals: globals.browser } },
   { files: ["**/*.{js,mjs,cjs,ts,vue}"], plugins: { js }, extends: ["js/recommended"] },

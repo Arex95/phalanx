@@ -15,6 +15,10 @@ term is used for this kind of tool: it owns the behaviour and owns none of the
 interface.
 
 ```ts
+import {
+    RestStd, defineAction, createDomainQueries, createDomainMutations, type BaseModelKeys
+} from '@arex95/phalanx';
+
 class UserService extends RestStd {
     static resource = 'users';
 
@@ -24,9 +28,15 @@ class UserService extends RestStd {
     );
 }
 
-const keys = { all: 'users', one: 'user' };
-export const userQueries = createDomainQueries({ service: UserService, keys });
-export const userMutations = createDomainMutations({ service: UserService, keys });
+const userKeys = {
+    list: 'admin:user:list',
+    item: 'admin:user:item',
+    selected: 'admin:user:selected',
+    collection: 'admin:user:collection',
+    filter: 'admin:user:filter'
+} as const satisfies BaseModelKeys;
+export const userQueries = createDomainQueries({ service: UserService, keys: userKeys });
+export const userMutations = createDomainMutations({ service: UserService, keys: userKeys });
 ```
 
 `userMutations.suspend` is a TanStack mutation with an `isAuthorized` computed,

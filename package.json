@@ -25,11 +25,12 @@
     "typecheck": "vue-tsc --noEmit",
     "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
     "lint": "eslint .",
-    "prepublishOnly": "npm run typecheck && npm run typecheck:test && npm run lint && npm run test && npm run build",
+    "prepublishOnly": "npm run typecheck && npm run typecheck:test && npm run lint && npm run test && npm run build && npm run check:docs",
     "release": "git push --follow-tags && npm publish --access public",
     "release:major": "npm version major -m \"chore(release): %s\"",
     "release:minor": "npm version minor -m \"chore(release): %s\"",
-    "release:patch": "npm version patch -m \"chore(release): %s\""
+    "release:patch": "npm version patch -m \"chore(release): %s\"",
+    "check:docs": "node scripts/check-docs-examples.mjs"
   },
   "repository": {
     "type": "git",
