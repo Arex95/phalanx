@@ -1,3 +1,4 @@
+import { shallowRef } from 'vue';
 import type { ActionInjection } from '@/actions/actionBehaviour';
 
 /**
@@ -16,17 +17,30 @@ import type { ActionInjection } from '@/actions/actionBehaviour';
  * Like the other configuration here this is module-level state — one set per
  * process. Correct in a browser, wrong in SSR request handling.
  */
-let actionsConfig: ActionInjection = {};
+/**
+ * Reactive, and deliberately so. The four are read where they are used rather
+ * than captured when a domain object is built, so registering them after a
+ * domain exists still takes effect — and `isAuthorized`, a `computed`, tracks
+ * this ref and re-evaluates instead of caching a verdict reached before the
+ * permission check was known.
+ *
+ * That ordering used to matter, silently and in the dangerous direction: the
+ * default permission check is `() => true`, so every gated action in every
+ * domain built before `configActions` ran was authorized. The button rendered
+ * and the action fired; only the server refused. Making this reactive removes
+ * the ordering constraint rather than documenting it.
+ */
+const actionsConfig = shallowRef<ActionInjection>({});
 
 export function configActions(config: ActionInjection): void {
-    actionsConfig = { ...config };
+    actionsConfig.value = { ...config };
 }
 
 export function getActionsConfig(): ActionInjection {
-    return actionsConfig;
+    return actionsConfig.value;
 }
 
 /** Test seam: forgets the registered defaults. */
 export function resetActionsConfig(): void {
-    actionsConfig = {};
+    actionsConfig.value = {};
 }

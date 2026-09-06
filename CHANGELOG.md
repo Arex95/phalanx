@@ -114,11 +114,24 @@ encrypted storage and a test suite.
   module-level export: they are plain strings, and things outside the
   composable import them.
 
-- **`configActions` had no ordering note.** The four functions are resolved when
-  a domain object is built, not when an action fires, so registering afterwards
-  is ignored by every domain already constructed — and silently, since an
-  unregistered function only disables its concern. Documented, along with why
-  the root component's setup body works and `onMounted` does not.
+- **`configActions` registration order no longer matters, and it used to fail
+  open.** The four functions were captured when a domain object was built, so a
+  later registration was ignored by every domain that already existed. That is
+  worse than "the concern is disabled": the default permission check is
+  `() => true`, so every gated action in every domain constructed before
+  `configActions` ran reported `isAuthorized === true`. The button rendered, the
+  action fired, and only the server refused.
+
+  They are now read where they are used, against a reactive source, so a late
+  registration reaches domains that already exist and `isAuthorized` recomputes
+  instead of keeping the verdict it cached. Swapping the permission source at
+  runtime — a profile arriving, a tenant switch — no longer requires rebuilding
+  a domain either.
+
+  A consumer avoided this by instinct and reported it as a note about calling
+  `configActions` from the root setup body rather than `onMounted`. The note was
+  right; this removes the need for it. Only an action that *fires* before
+  registration still falls back to the defaults.
 
 - **`createModelKeys` extras oversold.** The guide presented named extras as the
   general answer for a sixth key. The value is `` `${namespace}:${name}` ``, so

@@ -115,13 +115,31 @@ export function createDomainMutations<
     // Per-call over global over default, resolved one function at a time: a
     // module that needs its own confirmation dialog overrides that one and
     // still inherits the panel's translator and notifier.
-    const globals = getActionsConfig();
+    //
+    // Resolved on access, not here. Capturing the globals at construction made
+    // registration order matter in the direction that fails open — the default
+    // permission check is `() => true`, so a domain built before
+    // `configActions` ran authorized every gated action, silently. Reading
+    // through `getActionsConfig()` on each access, against a reactive source,
+    // means a late registration reaches domains that already exist and
+    // `isAuthorized` recomputes rather than keeping the verdict it cached.
     const injection: Required<ActionInjection> = {
-        checkPermission: config.checkPermission ?? globals.checkPermission ?? checkPermission,
-        requestConfirmation:
-            config.requestConfirmation ?? globals.requestConfirmation ?? requestConfirmation,
-        translate: config.translate ?? globals.translate ?? translate,
-        notify: config.notify ?? globals.notify ?? notify
+        get checkPermission() {
+            return config.checkPermission ?? getActionsConfig().checkPermission ?? checkPermission;
+        },
+        get requestConfirmation() {
+            return (
+                config.requestConfirmation ??
+                getActionsConfig().requestConfirmation ??
+                requestConfirmation
+            );
+        },
+        get translate() {
+            return config.translate ?? getActionsConfig().translate ?? translate;
+        },
+        get notify() {
+            return config.notify ?? getActionsConfig().notify ?? notify;
+        }
     };
 
     function toEntity(dto: TDTO | undefined | null): TEntity | null {

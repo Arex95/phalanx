@@ -4,6 +4,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { configActions, getActionsConfig, resetActionsConfig } from '@config/global/actionsConfig';
 import { createDomainMutations } from '@/composables/mutations/createDomainMutations';
 import type { RestStdService } from '@/types';
+import { defineAction } from '@/actions';
 
 function withSetup<T>(composable: () => T) {
     let result!: T;
@@ -31,6 +32,14 @@ function service() {
         resource: 'widgets',
         getAll: vi.fn(), getOne: vi.fn(), update: vi.fn(), patch: vi.fn(), delete: vi.fn(),
         create: vi.fn(async () => ({ success: true, message: '', data: { id: '1' } }))
+    } as unknown as RestStdService;
+}
+
+/** A service whose custom action declares a permission, so `isAuthorized` exists. */
+function serviceWithGatedAction() {
+    return {
+        ...(service() as unknown as Record<string, unknown>),
+        nuke: defineAction(async () => ({ ok: true }), { permission: 'widgets.nuke' })
     } as unknown as RestStdService;
 }
 
@@ -133,5 +142,60 @@ describe('configActions', () => {
         };
         expect(m.create.isAuthorized.value).toBe(true);
         expect(m.remove.isAuthorized.value).toBe(false);
+    });
+});
+
+/**
+ * Registration order used to matter, and in the direction that fails open: the
+ * injection was captured when a domain object was built, and the default
+ * permission check is `() => true`, so every gated action in every domain
+ * constructed before `configActions` ran was authorized — the button rendered,
+ * the action fired, and only the server refused.
+ *
+ * A consumer avoided this by instinct and reported it as a note about calling
+ * `configActions` in the root setup body rather than `onMounted`. These pin the
+ * behaviour that makes the note unnecessary.
+ */
+describe('registration order', () => {
+    function buildDomain() {
+        let domain!: ReturnType<typeof createDomainMutations>;
+        const app = createApp({
+            setup() {
+                domain = createDomainMutations({ service: serviceWithGatedAction(), keys });
+                return () => null;
+            }
+        });
+        app.use(VueQueryPlugin, { queryClient: new QueryClient() });
+        app.mount(document.createElement('div'));
+        return { domain, unmount: () => app.unmount() };
+    }
+
+    it('a permission check registered after the domain exists still denies', () => {
+        resetActionsConfig();
+        const { domain, unmount } = buildDomain();
+
+        // Nothing registered yet: the default authorizes.
+        const gated = domain as unknown as { nuke: { isAuthorized: { value: boolean } } };
+        expect(gated.nuke.isAuthorized.value).toBe(true);
+
+        configActions({ checkPermission: () => false });
+        expect(gated.nuke.isAuthorized.value).toBe(false);
+
+        unmount();
+    });
+
+    it('a later re-registration is picked up too', () => {
+        resetActionsConfig();
+        configActions({ checkPermission: () => false });
+        const { domain, unmount } = buildDomain();
+        const gated = domain as unknown as { nuke: { isAuthorized: { value: boolean } } };
+        expect(gated.nuke.isAuthorized.value).toBe(false);
+
+        // A panel that swaps the permission source — a profile arriving, a
+        // tenant switch — does not have to rebuild its domains.
+        configActions({ checkPermission: (p) => p === 'widgets.nuke' });
+        expect(gated.nuke.isAuthorized.value).toBe(true);
+
+        unmount();
     });
 });

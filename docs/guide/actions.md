@@ -146,15 +146,18 @@ configActions({
 Resolution is per function: a module that passes its own `requestConfirmation`
 overrides that one and still inherits the registered translator and notifier.
 
-::: danger Register it before the first `use<X>()`
-The four are read when a domain object is built, not when an action fires, so
-anything registered afterwards is ignored by every domain already constructed —
-silently, since an unregistered function only disables its concern.
+::: tip Registration order does not matter
+The four are read where they are used, against a reactive source, so a
+`configActions` that runs after a domain object exists still reaches it —
+`isAuthorized` re-evaluates rather than keeping the verdict it reached before
+the permission check was known. Swapping the permission source later (a profile
+arriving, a tenant switch) does not require rebuilding your domains either.
 
-Call it in the **setup body** of your root component, not in `onMounted`: a
-parent's setup runs before any routed view's setup, while a parent's `onMounted`
-runs *after* its children have mounted. `main.ts`, before `app.mount()`, is
-equally safe.
+Earlier versions captured the four when the domain was built, which made order
+matter in the direction that fails open: the default permission check is
+`() => true`, so a domain constructed first authorized every gated action until
+something rebuilt it. Only an action that *fires* before registration still
+falls back to the defaults.
 :::
 
 ::: warning
