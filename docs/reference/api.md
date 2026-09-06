@@ -62,6 +62,14 @@ defineAction<TFn>(fn: TFn, meta: ActionMeta): TFn & { meta: ActionMeta }
 withActionBehaviour(...)          // the wrapper the mutations apply
 class ActionCancelledError extends Error
 defaultNotify, defaultRequestConfirmation
+
+interface NotifyRequest {
+    severity: 'success' | 'error';
+    message: string;              // the declared key, translated
+    extra?: Record<string, unknown>;
+    error?: unknown;              // the rejection, on 'error'
+    data?: unknown;               // the resolved value, on 'success'
+}
 ```
 
 See [Actions](/guide/actions).
