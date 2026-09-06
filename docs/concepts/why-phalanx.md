@@ -23,7 +23,9 @@ class UserService extends RestStd {
     static resource = 'users';
 
     static suspend = defineAction(
-        (id: string) => this.customRequest({ method: 'POST', url: `users/${id}/suspend` }),
+        function (id: string) {
+            return this.customRequest({ method: 'POST', url: `users/${id}/suspend` });
+        },
         { permission: 'users.suspend', requiresConfirmation: true, invalidate: ['users'] }
     );
 }

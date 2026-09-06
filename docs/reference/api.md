@@ -62,6 +62,9 @@ See [Queries](/guide/queries), [Mutations](/guide/mutations),
 ```ts
 defineAction<TFn>(fn: TFn, meta: ActionMeta): TFn & { meta: ActionMeta }
 withActionBehaviour(...)          // the wrapper the mutations apply
+
+type ServiceRef = typeof RestStd  // what `this` is inside an action
+type ActionFn<TThis = ServiceRef> = (this: TThis, ...args: any[]) => Promise<any>
 class ActionCancelledError extends Error
 defaultNotify, defaultRequestConfirmation
 

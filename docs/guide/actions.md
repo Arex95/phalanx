@@ -12,10 +12,12 @@ export class UserService extends RestStd {
     static resource = 'users';
 
     static suspend = defineAction(
-        (id: string) => this.customRequest<User>({
-            method: 'POST',
-            url: `users/${id}/suspend`
-        }),
+        function (id: string) {
+            return this.customRequest<User>({
+                method: 'POST',
+                url: `users/${id}/suspend`
+            });
+        },
         {
             permission: 'users.suspend',
             requiresConfirmation: true,
@@ -27,6 +29,16 @@ export class UserService extends RestStd {
     );
 }
 ```
+
+`this` is typed for you as the service class — no annotation needed.
+
+::: warning Use a `function`, not an arrow
+The mutation binds the method to the service class at call time, and only a
+`function` expression honours that binding. An arrow captures `this` lexically,
+which in a `static` initializer happens to be the class — so it works, until
+someone writes `class AdminUserService extends UserService`. From then on the
+action keeps resolving against the parent's `resource`, and nothing is raised.
+:::
 
 The generated mutation applies them:
 

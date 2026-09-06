@@ -125,10 +125,12 @@ export default class AppointmentService extends RestStd {
     static resource = 'admin/appointments';
 
     static confirm = defineAction(
-        (id: string) => this.customRequest<Appointment>({
-            method: 'POST',
-            url: `admin/appointments/${id}/confirm`
-        }),
+        function (id: string) {
+            return this.customRequest<Appointment>({
+                method: 'POST',
+                url: `admin/appointments/${id}/confirm`
+            });
+        },
         {
             permission: 'appointments.confirm',
             requiresConfirmation: true,

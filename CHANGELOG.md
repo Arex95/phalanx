@@ -81,6 +81,39 @@ Identity: a headless framework for admin panels. Everything that duplicated
 was removed, and what remained grew a session model, realtime connections,
 encrypted storage and a test suite.
 
+## Fixed
+
+- **`defineAction` no longer needs a `this` annotation.** `ActionFn` did not
+  declare a receiver, so the `function` expression its own documentation
+  required failed under `strict` with TS2683 — and, less visibly, the
+  resulting `any` also dropped the type argument on `this.customRequest<T>()`
+  (TS2347), losing the return type for anyone who silenced the first error
+  instead of annotating. `this` is now typed contextually as the service
+  class:
+
+  ```ts
+  static suspend = defineAction(function (id: string) {
+      return this.customRequest<User>({ method: 'POST', url: `users/${id}/suspend` });
+  }, { permission: 'users.suspend' });
+  ```
+
+  A narrower `this: typeof MyService` is still accepted, for an action that
+  reaches a static the subclass adds of its own — that is what the second
+  overload is for, since `this` types are checked contravariantly and one
+  signature could not admit both. `ServiceRef` is exported for naming it.
+
+  Reported by the same panel. Additive: nothing that compiled before stops
+  compiling.
+
+- **The documentation contradicted the implementation.** Every example wrote
+  the action as an arrow while `defineAction`'s own comment forbade it. The
+  arrow is not merely discouraged: it ignores the `.bind(service)` the
+  mutation performs, which is invisible in the declaring class — a `static`
+  arrow's lexical `this` is that class — and starts resolving against the
+  parent's `resource` the moment the service is subclassed, with no error.
+  The examples now use a `function`, and the guide says what the arrow costs.
+
+
 ## ⚠️ Breaking changes
 
 ### The package and the plugin
