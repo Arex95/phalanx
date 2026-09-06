@@ -72,11 +72,38 @@ function allTruthy(args: unknown): boolean {
     return true;
 }
 
+/**
+ * Cache policy a query gets when the call site does not state one.
+ *
+ * Deliberately excludes `enabled`, `params` and `id`: those are properties of
+ * the call — `enabled: computed(() => !!uuid.value)` means something only where
+ * it is written — while how fresh a resource must be belongs to the resource.
+ * The same lookup wants the same freshness whether a detail page or a label
+ * component renders it, and stating it per screen is how one domain ends up
+ * with three answers.
+ */
+export interface QueryDefaults {
+    staleTime?: number;
+    refetchInterval?: MaybeRef<number | false>;
+    refetchOnWindowFocus?: boolean;
+}
+
 export interface CreateDomainQueriesConfig<TEntity, TDTO, TService extends RestStdService> {
     service: TService;
     keys: BaseModelKeys & Record<string, string | undefined>;
     module?: string;
     model?: ModelConstructor<TEntity, TDTO>;
+    /**
+     * Per query, not one value per domain — a module routinely wants a long
+     * `staleTime` on a catalogue and none on the row being edited. Keyed by
+     * `getAll`, `getOne`, or the name of a custom service method.
+     *
+     * Anything the call site passes wins.
+     */
+    defaultOptions?: {
+        getAll?: QueryDefaults;
+        getOne?: QueryDefaults;
+    } & Record<string, QueryDefaults | undefined>;
 }
 
 export interface GetAllQueryOptions {
@@ -136,6 +163,11 @@ export function createDomainQueries<
     const { service, keys, model } = config;
     const queryClient = useQueryClient();
     const ownerScope = getCurrentScope() ?? effectScope();
+
+    /** Call site over domain default over undefined, one option at a time. */
+    function defaults(query: string): QueryDefaults {
+        return config.defaultOptions?.[query] ?? {};
+    }
     void config.module;
 
     function keyFor(methodName: string, args: unknown) {
@@ -164,9 +196,10 @@ export function createDomainQueries<
         return ownerScope.run(() => useQuery({
             queryKey,
             enabled,
-            staleTime: options.staleTime,
-            refetchInterval: options.refetchInterval as never,
-            refetchOnWindowFocus: options.refetchOnWindowFocus,
+            staleTime: options.staleTime ?? defaults('getAll').staleTime,
+            refetchInterval: (options.refetchInterval ?? defaults('getAll').refetchInterval) as never,
+            refetchOnWindowFocus:
+                options.refetchOnWindowFocus ?? defaults('getAll').refetchOnWindowFocus,
             queryFn: async () => {
                 const rawParams = unref(options.params) as Record<string, unknown> | undefined;
                 const apiParams = toJsonApi(rawParams);
@@ -193,9 +226,10 @@ export function createDomainQueries<
         return ownerScope.run(() => useQuery({
             queryKey,
             enabled,
-            staleTime: options.staleTime,
-            refetchInterval: options.refetchInterval as never,
-            refetchOnWindowFocus: options.refetchOnWindowFocus,
+            staleTime: options.staleTime ?? defaults('getOne').staleTime,
+            refetchInterval: (options.refetchInterval ?? defaults('getOne').refetchInterval) as never,
+            refetchOnWindowFocus:
+                options.refetchOnWindowFocus ?? defaults('getOne').refetchOnWindowFocus,
             queryFn: async () => {
                 const id = unref(options.id);
                 if (!id) throw new Error('id required');
@@ -231,9 +265,11 @@ export function createDomainQueries<
                 return ownerScope.run(() => useQuery({
                     queryKey,
                     enabled,
-                    staleTime: options?.staleTime,
-                    refetchInterval: options?.refetchInterval as never,
-                    refetchOnWindowFocus: options?.refetchOnWindowFocus,
+                    staleTime: options?.staleTime ?? defaults(methodName).staleTime,
+                    refetchInterval: (options?.refetchInterval ??
+                        defaults(methodName).refetchInterval) as never,
+                    refetchOnWindowFocus:
+                        options?.refetchOnWindowFocus ?? defaults(methodName).refetchOnWindowFocus,
                     queryFn: () => serviceMethod(unrefDeep(args))
                 }, queryClient))!;
             }) as CustomQueryCallable;

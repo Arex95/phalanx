@@ -110,7 +110,35 @@ interface ActionInjection {
 }
 ```
 
-Any omitted function disables that concern for every action in the object.
+### Registering them once
+
+These four are application policy — one permission system, one dialog, one
+toast, one i18n — so they can be registered once instead of restated in every
+domain:
+
+```ts
+import { configActions } from '@arex95/phalanx';
+
+configActions({
+    checkPermission: (permission) => auth.can(permission),
+    translate: (key) => i18n.global.t(key),
+    requestConfirmation: (request, onAccept, onReject) =>
+        confirm.require({ ...request, accept: onAccept, reject: onReject }),
+    notify: ({ severity, message, error }) =>
+        toast.add({ severity, detail: extractErrorMessage(error, message) })
+});
+```
+
+Resolution is per function: a module that passes its own `requestConfirmation`
+overrides that one and still inherits the registered translator and notifier.
+
+::: warning
+`configActions` is module-level state, one set per process. That suits a browser
+and does not suit SSR request handling.
+:::
+
+Any omitted function — not registered and not passed — disables that concern for
+every action in the object.
 `defaultNotify` and `defaultRequestConfirmation` are exported as `window`-based
 implementations for prototyping.
 

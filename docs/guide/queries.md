@@ -87,6 +87,32 @@ Each also exposes `fetch` for imperative use outside a component's setup:
 const blob = await userQueries.exportCsv.fetch({ from, to });
 ```
 
+## Default options
+
+How fresh a resource must be is a property of the resource, not of the screen
+rendering it — the same lookup wants the same freshness on a detail page and in
+a label component. Declare it once:
+
+```ts
+createDomainQueries({
+    service: UserService,
+    keys: userKeys,
+    defaultOptions: {
+        getAll: { staleTime: 30_000 },
+        getOne: { staleTime: 0 },
+        exportCsv: { staleTime: 60_000 }
+    }
+});
+```
+
+Keyed per query — `getAll`, `getOne`, or a custom method's name — because one
+module routinely wants a long stale time on a catalogue and none on the row
+being edited. Anything the call site passes wins.
+
+Only `staleTime`, `refetchInterval` and `refetchOnWindowFocus` can be defaulted.
+`enabled`, `params` and `id` cannot: `enabled: computed(() => !!uuid.value)`
+means something only where it is written.
+
 ## Cache keys
 
 `keys` is returned so you can invalidate by hand where the automatic

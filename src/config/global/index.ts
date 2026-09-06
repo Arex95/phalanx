@@ -3,3 +3,4 @@ export * from './tokenPathsConfig';
 export * from './callbacksConfig';
 export * from './csrfConfig';
 export * from './encryptionConfig';
+export * from './actionsConfig';

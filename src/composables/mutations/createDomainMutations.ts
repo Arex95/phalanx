@@ -1,5 +1,6 @@
 import { effectScope, getCurrentScope, type ComputedRef } from 'vue';
 import { useMutation, useQueryClient, type UseMutationReturnType } from '@tanstack/vue-query';
+import { getActionsConfig } from '@config/global/actionsConfig';
 import {
     type ActionAugment,
     type ActionInjection,
@@ -113,11 +114,16 @@ export function createDomainMutations<
     void (config.module ?? keys.list.split(':')[0]);
     const queryClient = useQueryClient();
     const ownerScope = getCurrentScope() ?? effectScope();
+    // Per-call over global over default, resolved one function at a time: a
+    // module that needs its own confirmation dialog overrides that one and
+    // still inherits the panel's translator and notifier.
+    const globals = getActionsConfig();
     const injection: Required<ActionInjection> = {
-        checkPermission,
-        requestConfirmation,
-        translate,
-        notify
+        checkPermission: config.checkPermission ?? globals.checkPermission ?? checkPermission,
+        requestConfirmation:
+            config.requestConfirmation ?? globals.requestConfirmation ?? requestConfirmation,
+        translate: config.translate ?? globals.translate ?? translate,
+        notify: config.notify ?? globals.notify ?? notify
     };
 
     function toEntity(dto: TDTO | undefined | null): TEntity | null {
@@ -163,9 +169,9 @@ export function createDomainMutations<
     ) {
         const key = severity === 'success' ? meta?.successMessageKey : meta?.errorMessageKey;
         if (!key) return;
-        notify({
+        injection.notify({
             severity,
-            message: translate(key),
+            message: injection.translate(key),
             extra: meta?.notifyOptions,
             ...(severity === 'error' ? { error: outcome } : { data: outcome })
         });

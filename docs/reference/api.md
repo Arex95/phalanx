@@ -46,7 +46,7 @@ class RestStd {
 ## Composables
 
 ```ts
-createDomainQueries({ service, keys, module?, model? })
+createDomainQueries({ service, keys, module?, model?, defaultOptions? })
 createDomainMutations({ service, keys, module?, model?, invalidate?, actions?,
                         extraInvalidateKeys?, ...ActionInjection })
 useAuth(fetcher?): { login, logout }
@@ -89,12 +89,12 @@ See [Actions](/guide/actions).
 ## Configuration
 
 ```ts
-configEndpoints, configTokenPaths, configRefreshResponsePaths, configCsrf,
+configActions, configEndpoints, configTokenPaths, configRefreshResponsePaths, configCsrf,
 configEncryption, configAxios, configCallbacks, configAuthFetcher,
 setDefaultAuthFetcherFactory
 
 getEndpointsConfig, getTokenPathsConfig, getRefreshResponsePathsConfig,
-getCsrfConfig, getEncryptionPublicKeyPem, getCallbacksConfig,
+getActionsConfig, getCsrfConfig, getEncryptionPublicKeyPem, getCallbacksConfig,
 getDefaultAuthFetcher
 ```
 
@@ -156,6 +156,7 @@ reportBackendFailure(now?): void
 reportBackendSuccess(): void
 retryBackend(): Promise<void>
 
+resetActionsConfig(): void        // test seam
 resetBackendHealth(): void        // test seam
 resetIdempotencyScopes(): void    // test seam
 ```

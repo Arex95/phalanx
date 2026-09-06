@@ -1,5 +1,9 @@
 # 6.1.0 (2026-09-06)
 
+Three gaps reported by a panel adopting the actions layer, which had it declared
+in one composable out of seventeen and the four concerns rewritten by hand in
+fifty-two files.
+
 ## Added
 
 - **`NotifyRequest` carries the outcome.** `error` on a failure, `data` on a
@@ -18,6 +22,27 @@
   not adopt `errorMessageKey`.
 
   Additive: existing `notify` implementations are unaffected.
+
+- **`configActions()`** registers `checkPermission`, `requestConfirmation`,
+  `translate` and `notify` once for the application. They were reachable only
+  through `createDomainMutations`'s config, so every domain restated the same
+  four. Resolution is per function — a module can override one and inherit the
+  rest — and a per-call config still wins.
+
+- **`defaultOptions` on `createDomainQueries`.** Cache policy declared at the
+  domain instead of at each call site:
+
+  ```ts
+  createDomainQueries({
+      service, keys,
+      defaultOptions: { getAll: { staleTime: 30_000 }, getOne: { staleTime: 0 } }
+  });
+  ```
+
+  Keyed per query, including custom methods by name, because one module wants a
+  long stale time on a catalogue and none on the row being edited. Limited to
+  `staleTime`, `refetchInterval` and `refetchOnWindowFocus`: `enabled`, `params`
+  and `id` belong to the call.
 
 # 6.0.0 (2026-09-03)
 
