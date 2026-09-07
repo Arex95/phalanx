@@ -1,4 +1,4 @@
-# 6.2.0 — unreleased
+# 6.2.0 (2026-09-06)
 
 Access control, opened by a measurement rather than a feature request: a panel
 that had fully adopted the actions layer declared **52 permission strings and

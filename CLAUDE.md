@@ -6,7 +6,7 @@ Guidance for Claude Code when working in this repository.
 
 ```bash
 pnpm install
-pnpm test            # 322 tests, vitest + happy-dom
+pnpm test            # 509 tests, vitest + happy-dom
 pnpm typecheck       # vue-tsc --noEmit, source only
 pnpm typecheck:test  # tsc -p tsconfig.test.json, the tests
 pnpm lint            # eslint . — the whole repo, not just src/
@@ -56,6 +56,7 @@ src/
 │   ├── global/       endpoints, tokenPaths, refreshTokenPaths, csrf, encryption, callbacks
 │   ├── axios/        the axios instance and its interceptors
 │   └── auth/         the auth fetcher
+├── permissions/      can/canAny, the verdict cache, createPermissionGuard
 ├── crypto/           encryptField (AES-GCM + RSA-OAEP)
 ├── rest/             RestStd
 ├── services/         accessToken, refreshTokens, credentials, extractTokens

@@ -1,94 +1,94 @@
 {
-  "name": "@arex95/phalanx",
-  "version": "6.1.0",
-  "description": "Headless framework for admin panels on Vue: typed REST services with derived TanStack queries and mutations, declarative actions, session handling with an HttpOnly refresh cookie, resilient realtime connections, encrypted browser storage and typed errors.",
-  "main": "dist/index.mjs",
-  "module": "dist/index.mjs",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs"
+    "name": "@arex95/phalanx",
+    "version": "6.2.0",
+    "description": "Headless framework for admin panels on Vue: typed REST services with derived TanStack queries and mutations, declarative actions, session handling with an HttpOnly refresh cookie, resilient realtime connections, encrypted browser storage and typed errors.",
+    "main": "dist/index.mjs",
+    "module": "dist/index.mjs",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.mjs"
+        },
+        "./package.json": "./package.json"
     },
-    "./package.json": "./package.json"
-  },
-  "types": "dist/index.d.ts",
-  "type": "module",
-  "sideEffects": false,
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
-    "build": "npm run clean && rollup -c && node scripts/fix-dts-aliases.mjs",
-    "dev": "rollup -c -w",
-    "test": "vitest run",
-    "typecheck": "vue-tsc --noEmit",
-    "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
-    "lint": "eslint .",
-    "prepublishOnly": "npm run typecheck && npm run typecheck:test && npm run lint && npm run test && npm run build && npm run check:docs",
-    "release": "git push --follow-tags && npm publish --access public",
-    "release:major": "npm version major -m \"chore(release): %s\"",
-    "release:minor": "npm version minor -m \"chore(release): %s\"",
-    "release:patch": "npm version patch -m \"chore(release): %s\"",
-    "check:docs": "node scripts/check-docs-examples.mjs"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Arex95/phalanx.git"
-  },
-  "keywords": [
-    "vue",
-    "vue3",
-    "admin",
-    "admin-panel",
-    "typescript",
-    "rest-api",
-    "tanstack-query",
-    "authentication",
-    "realtime",
-    "sse",
-    "encryption",
-    "csrf",
-    "axios",
-    "jwt"
-  ],
-  "author": "Arturo Rafael Serrano Gir\u00f3n",
-  "license": "MIT",
-  "peerDependencies": {
-    "@tanstack/vue-query": ">=5.0.0",
-    "axios": ">=1.15.2",
-    "jwt-decode": "^4.0.0",
-    "vue": ">=3.0.0"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.23.0",
-    "@rollup/plugin-commonjs": "^28.0.3",
-    "@rollup/plugin-json": "^6.1.0",
-    "@rollup/plugin-node-resolve": "^16.0.0",
-    "@rollup/plugin-typescript": "^12.1.2",
-    "@tanstack/vue-query": "^5.102.6",
-    "@types/node": "^22.13.10",
-    "@vitest/coverage-v8": "^4.1.11",
-    "@vue/test-utils": "^2.4.11",
-    "axios": "^1.18.1",
-    "eslint": "^9.23.0",
-    "eslint-plugin-vue": "^10.0.0",
-    "fake-indexeddb": "^6.2.5",
-    "globals": "^16.0.0",
-    "happy-dom": "^20.11.1",
-    "rollup": "^4.35.0",
-    "ts-node": "^10.9.2",
-    "tslib": "^2.8.1",
-    "typescript": "^5.8.2",
-    "typescript-eslint": "^8.28.0",
-    "vitest": "^4.1.11",
-    "vue-tsc": "^3.3.11"
-  },
-  "engines": {
-    "node": ">=15"
-  },
-  "homepage": "https://github.com/Arex95/phalanx#readme",
-  "bugs": {
-    "url": "https://github.com/Arex95/phalanx/issues"
-  }
+    "types": "dist/index.d.ts",
+    "type": "module",
+    "sideEffects": false,
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+        "build": "npm run clean && rollup -c && node scripts/fix-dts-aliases.mjs",
+        "dev": "rollup -c -w",
+        "test": "vitest run",
+        "typecheck": "vue-tsc --noEmit",
+        "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
+        "lint": "eslint .",
+        "prepublishOnly": "npm run typecheck && npm run typecheck:test && npm run lint && npm run test && npm run build && npm run check:docs",
+        "release": "git push --follow-tags && npm publish --access public",
+        "release:major": "npm version major -m \"chore(release): %s\"",
+        "release:minor": "npm version minor -m \"chore(release): %s\"",
+        "release:patch": "npm version patch -m \"chore(release): %s\"",
+        "check:docs": "node scripts/check-docs-examples.mjs"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Arex95/phalanx.git"
+    },
+    "keywords": [
+        "vue",
+        "vue3",
+        "admin",
+        "admin-panel",
+        "typescript",
+        "rest-api",
+        "tanstack-query",
+        "authentication",
+        "realtime",
+        "sse",
+        "encryption",
+        "csrf",
+        "axios",
+        "jwt"
+    ],
+    "author": "Arturo Rafael Serrano Gir\u00f3n",
+    "license": "MIT",
+    "peerDependencies": {
+        "@tanstack/vue-query": ">=5.0.0",
+        "axios": ">=1.15.2",
+        "jwt-decode": "^4.0.0",
+        "vue": ">=3.0.0"
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.23.0",
+        "@rollup/plugin-commonjs": "^28.0.3",
+        "@rollup/plugin-json": "^6.1.0",
+        "@rollup/plugin-node-resolve": "^16.0.0",
+        "@rollup/plugin-typescript": "^12.1.2",
+        "@tanstack/vue-query": "^5.102.6",
+        "@types/node": "^22.13.10",
+        "@vitest/coverage-v8": "^4.1.11",
+        "@vue/test-utils": "^2.4.11",
+        "axios": "^1.18.1",
+        "eslint": "^9.23.0",
+        "eslint-plugin-vue": "^10.0.0",
+        "fake-indexeddb": "^6.2.5",
+        "globals": "^16.0.0",
+        "happy-dom": "^20.11.1",
+        "rollup": "^4.35.0",
+        "ts-node": "^10.9.2",
+        "tslib": "^2.8.1",
+        "typescript": "^5.8.2",
+        "typescript-eslint": "^8.28.0",
+        "vitest": "^4.1.11",
+        "vue-tsc": "^3.3.11"
+    },
+    "engines": {
+        "node": ">=15"
+    },
+    "homepage": "https://github.com/Arex95/phalanx#readme",
+    "bugs": {
+        "url": "https://github.com/Arex95/phalanx/issues"
+    }
 }
