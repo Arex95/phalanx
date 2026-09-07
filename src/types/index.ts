@@ -8,3 +8,4 @@ export * from './RestStdOptions';
 export * from './Encryption';
 export * from './Csrf';
 export * from './modelKeys';
+export * from './permissions';

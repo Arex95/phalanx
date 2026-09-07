@@ -69,7 +69,40 @@ differently. The bug that produces — a mutation that succeeds while the list
 keeps showing stale rows — has no error, no log and no failing test.
 :::
 
-### 3 · Service — usually three lines
+### 3 · Permissions — the same file, for the same reason
+
+```ts
+// entities/work-type.permissions.ts
+import { createPermissions } from '@arex95/phalanx';
+
+export const WorkTypePermissions = createPermissions('Catalog.work_types');
+// { index: 'Catalog.work_types.index', create: 'Catalog.work_types.create', … }
+```
+
+Actions beyond CRUD are named, and the prefix is applied for you:
+
+```ts
+export const WaitlistPermissions = createPermissions('Waitlist.entries', [
+    'notify',
+    'convert'
+]);
+```
+
+A permission string is read in at least three places — the action's
+`permission`, the route's `meta`, and any ad-hoc check — and retyping it at
+each is how one of them ends up different. That failure is silent in the worse
+direction: a control the user should have simply never appears, and nobody
+files a bug about a button they have never seen.
+
+::: tip Not derived from `resource`, on purpose
+A permission's vocabulary belongs to whatever grants it, usually the back end,
+and it is not the vocabulary of a URL — `Catalog.work_types` against
+`admin/work-types`. Deriving one from the other means writing a mapping that is
+itself the permission, spread across more places than declaring it once. Same
+answer as [`createModelKeys`](#_2-keys-named-once-never-inline), same reason.
+:::
+
+### 4 · Service — usually three lines
 
 ```ts
 // services/work-type.service.ts
@@ -83,7 +116,7 @@ export default class WorkTypeService extends RestStd {
 That is a complete service. The eleven CRUD methods are inherited; adding
 anything here means the API does something CRUD does not cover.
 
-### 4 · Composable — the module's entry point
+### 5 · Composable — the module's entry point
 
 ```ts
 // composables/useWorkType.ts
@@ -106,7 +139,7 @@ export function useWorkType() {
 service, the keys or the model directly. One entry point per module means you
 can change how the data layer is assembled without touching a single view.
 
-### 5 · View — as thin as the composable allows
+### 6 · View — as thin as the composable allows
 
 ```vue
 <script setup lang="ts">

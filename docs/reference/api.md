@@ -47,6 +47,7 @@ class RestStd {
 
 ```ts
 createModelKeys(namespace: string, extras?: readonly string[]): ModelKeys
+createPermissions(prefix: string, extras?: readonly string[], options?: { separator?: string }): Permissions
 
 createDomainQueries({ service, keys, model?, defaultOptions? })
 createDomainMutations({ service, keys, model?, invalidate?, actions?,
@@ -61,6 +62,9 @@ See [Queries](/guide/queries), [Mutations](/guide/mutations),
 
 ```ts
 defineAction<TFn>(fn: TFn, meta: ActionMeta): TFn & { meta: ActionMeta }
+// on the augmented mutation:
+isAuthorized: ComputedRef<boolean>          // may this user, at all
+isAuthorizedFor(record: unknown): boolean   // …and does this record qualify
 withActionBehaviour(...)          // the wrapper the mutations apply
 
 type ServiceRef = typeof RestStd  // what `this` is inside an action

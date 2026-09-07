@@ -25,6 +25,33 @@ export interface ActionMeta {
      * whatever the consumer wired as the notification UI. Merged last.
      */
     notifyOptions?: Record<string, unknown>;
+    /**
+     * Whether *this record* qualifies, on top of whether the user is allowed.
+     * A table needs one verdict per row — an entry already notified cannot be
+     * notified again — and `isAuthorized` answers once for the whole domain.
+     * `isAuthorizedFor(record)` composes the two.
+     *
+     * Point it at the rule; do not restate it here. The condition belongs on
+     * the hydrated model, where anything else that needs it can read it too:
+     *
+     * ```ts
+     * // entities/waitlist.model.ts
+     * get canBeNotified() { return this.status === 'pending'; }
+     *
+     * // services/waitlist.service.ts
+     * allowedWhen: (entry: WaitlistEntry) => entry.canBeNotified
+     * ```
+     *
+     * Inlining `entry.status === 'pending'` here works and is not refused, but
+     * the day a badge or an icon needs the same rule it has to be written a
+     * second time, and the two drift.
+     *
+     * `record` is `any` for the same reason `ActionFn`'s parameters are: it
+     * must accept a predicate annotated with the consumer's own row type, and
+     * parameters are checked contravariantly, so `unknown` would reject it.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    allowedWhen?: (record: any) => boolean;
     invalidate?: string[] | { only: string[] };
 }
 

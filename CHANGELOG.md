@@ -1,3 +1,62 @@
+# 6.2.0 — unreleased
+
+Access control, opened by a measurement rather than a feature request: a panel
+that had fully adopted the actions layer declared **52 permission strings and
+routed none of them** through `defineAction`'s `permission` field.
+
+## Added
+
+- **`isAuthorizedFor(record)` on an action.** The reason the `permission` field
+  went unused was not preference. `isAuthorized` answers once for the whole
+  domain, and a table needs one verdict per row — an entry already notified
+  cannot be notified again — so the permission string was restated by hand
+  beside the row condition, in a second place, free to drift.
+
+  An action now declares when a record qualifies:
+
+  ```ts
+  // entities/waitlist.model.ts — the rule stays here
+  get canBeNotified() { return this.status === 'pending'; }
+
+  // services/waitlist.service.ts — the action points at it
+  static notify = defineAction(fn, {
+      permission: WaitlistPermissions.notify,
+      allowedWhen: (entry: WaitlistEntry) => entry.canBeNotified
+  });
+
+  // the table asks once, per row
+  visible: notify.isAuthorizedFor(row)
+  ```
+
+  Both halves are optional and it is `false` if either says so. The permission
+  half is a shared `computed`, so a hundred rows perform one permission check
+  and a hundred record checks, not two hundred — pinned by a test.
+
+  `isAuthorized` is unchanged.
+
+- **`createPermissions(prefix, extras?, options?)`** builds a module's
+  permission strings from one prefix, the way `createModelKeys` builds its
+  cache keys:
+
+  ```ts
+  // entities/work-type.permissions.ts
+  export const WorkTypePermissions = createPermissions('Catalog.work_types');
+  // { index: …, view: …, create: …, update: …, delete: … }
+
+  createPermissions('Waitlist.entries', ['notify', 'convert']).notify;
+  // 'Waitlist.entries.notify', and typed
+  ```
+
+  Deliberately not derived from the service's `resource`: a permission's
+  vocabulary belongs to whatever grants it, and it is not a URL's vocabulary —
+  `Catalog.work_types` against `admin/work-types`. Deriving one from the other
+  means writing a mapping that is itself the permission, in more places than
+  declaring it once. `separator` defaults to `'.'` and is configurable, because
+  the vocabulary is not ours to pick.
+
+  It refuses an empty prefix, and refuses an extra that would overwrite one of
+  the five base actions rather than merging it.
+
 # 6.1.0 (2026-09-06)
 
 Three gaps reported by a panel adopting the actions layer, which had it declared

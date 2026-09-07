@@ -47,6 +47,7 @@ type CrudAugment<TActions extends CrudActions, K extends CrudMethodName, T> = K 
     ? [T] extends [UseMutationReturnType<infer R, Error, infer A, unknown>]
         ? {
               isAuthorized: ComputedRef<boolean>;
+              isAuthorizedFor: (record: unknown) => boolean;
               mutateWithoutConfirmation: UseMutationReturnType<R, Error, A, unknown>['mutate'];
               mutateAsyncWithoutConfirmation: UseMutationReturnType<R, Error, A, unknown>['mutateAsync'];
           }

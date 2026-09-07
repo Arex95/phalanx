@@ -115,6 +115,7 @@ export const defaultNotify: NonNullable<ActionInjection['notify']> = (request) =
 
 export type AnyMutation = UseMutationReturnType<unknown, Error, unknown, unknown> & {
     isAuthorized?: ComputedRef<boolean>;
+    isAuthorizedFor?: (record: unknown) => boolean;
     mutateWithoutConfirmation?: UseMutationReturnType<unknown, Error, unknown, unknown>['mutate'];
     mutateAsyncWithoutConfirmation?: UseMutationReturnType<unknown, Error, unknown, unknown>['mutateAsync'];
 };
@@ -130,6 +131,7 @@ export type AnyMutation = UseMutationReturnType<unknown, Error, unknown, unknown
 export type ActionAugment<TMethod, R, A> = TMethod extends { meta: ActionMeta }
     ? {
           isAuthorized: ComputedRef<boolean>;
+          isAuthorizedFor: (record: unknown) => boolean;
           mutateWithoutConfirmation: UseMutationReturnType<R, Error, A, unknown>['mutate'];
           mutateAsyncWithoutConfirmation: UseMutationReturnType<R, Error, A, unknown>['mutateAsync'];
       }
@@ -152,6 +154,14 @@ export function withActionBehaviour(
             meta.permission ? injection.checkPermission(meta.permission) : true
         );
 
+        // The permission half is shared across every row and re-evaluated
+        // reactively; only the record half is per call, so a table of a
+        // hundred rows performs one permission check, not a hundred.
+        const isAuthorizedFor = (record: unknown): boolean => {
+            if (!isAuthorized.value) return false;
+            return meta.allowedWhen ? meta.allowedWhen(record) : true;
+        };
+
         if (!meta.requiresConfirmation) {
             // No confirmation to bypass — both escape hatches are simply
             // aliases of the real thing, so the type promise made by
@@ -160,6 +170,7 @@ export function withActionBehaviour(
             return {
                 ...mutation,
                 isAuthorized,
+                isAuthorizedFor,
                 mutateWithoutConfirmation: mutation.mutate,
                 mutateAsyncWithoutConfirmation: mutation.mutateAsync
             } as AnyMutation;
@@ -206,6 +217,7 @@ export function withActionBehaviour(
         return {
             ...mutation,
             isAuthorized,
+            isAuthorizedFor,
             mutate,
             mutateAsync,
             mutateWithoutConfirmation: rawMutate,

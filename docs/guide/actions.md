@@ -59,12 +59,50 @@ const { suspend } = userMutations;
 | Field | Type | Effect |
 |---|---|---|
 | `permission` | `string` | passed to `checkPermission`; drives `isAuthorized` |
+| `allowedWhen` | `(record) => boolean` | whether *this record* qualifies; drives `isAuthorizedFor` |
 | `requiresConfirmation` | `boolean` | routes the call through `requestConfirmation` |
 | `confirmMessageKey` · `confirmHeaderKey` | `string` | resolved through `translate` |
 | `confirmOptions` | `object` | forwarded to the confirmation handler |
 | `successMessageKey` · `errorMessageKey` | `string` | resolved and passed to `notify` |
 | `notifyOptions` | `object` | forwarded to the notify handler |
 | `invalidate` | `string[]` \| `{ only: string[] }` | cache keys to invalidate |
+
+## Authorizing a row
+
+`isAuthorized` answers once for the whole domain: may this user do this at all.
+A table needs a second answer per row — an entry already notified cannot be
+notified again — so an action can declare when a record qualifies:
+
+```ts
+// entities/waitlist.model.ts — the rule lives here
+get canBeNotified() { return this.status === 'pending'; }
+
+// services/waitlist.service.ts — the action points at it
+static notify = defineAction(fn, {
+    permission: WaitlistPermissions.notify,
+    allowedWhen: (entry: WaitlistEntry) => entry.canBeNotified
+});
+```
+
+```ts
+// and the table asks once, per row
+visible: notify.isAuthorizedFor(row)
+```
+
+`isAuthorizedFor` is permission **and** record: it is `false` if either half
+says so, and `true` when neither is declared. Both halves stay optional — an
+action gated only by state needs no permission, and one gated only by
+permission needs no `allowedWhen`.
+
+::: tip Point at the rule, do not restate it
+Writing `allowedWhen: (entry) => entry.status === 'pending'` works and is not
+refused. But the day a badge, an icon or an empty state needs the same
+condition, it gets written a second time and the two drift. On the model it is
+written once and everything reads it — including the action.
+:::
+
+The permission half is a shared `computed`, so a table of a hundred rows
+performs one permission check and a hundred record checks, not two hundred.
 
 ## Wiring the host application
 
