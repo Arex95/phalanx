@@ -36,6 +36,7 @@ export default defineConfig({
                     { text: 'Queries', link: '/guide/queries' },
                     { text: 'Mutations', link: '/guide/mutations' },
                     { text: 'Actions', link: '/guide/actions' },
+                    { text: 'Permissions', link: '/guide/permissions' },
                     { text: 'Authentication', link: '/guide/authentication' },
                     { text: 'Error handling', link: '/guide/errors' },
                     { text: 'Requests', link: '/guide/requests' },

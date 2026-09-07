@@ -49,6 +49,15 @@ class RestStd {
 createModelKeys(namespace: string, extras?: readonly string[]): ModelKeys
 createPermissions(prefix: string, extras?: readonly string[], options?: { separator?: string }): Permissions
 
+can(permission: string): boolean
+canAny(permissions: readonly string[]): boolean
+canAll(permissions: readonly string[]): boolean
+isPermissionPending(permission: string): boolean
+usePermission(permission: string): { allowed: ComputedRef<boolean>; isPending: ComputedRef<boolean> }
+canAsync(permission: string): Promise<boolean>
+canAnyAsync(permissions: readonly string[]): Promise<boolean>
+createPermissionGuard(options?: { read?, inherit? }): (route) => Promise<boolean>
+
 createDomainQueries({ service, keys, model?, defaultOptions? })
 createDomainMutations({ service, keys, model?, invalidate?, actions?,
                         extraInvalidateKeys?, ...ActionInjection })
@@ -63,8 +72,9 @@ See [Queries](/guide/queries), [Mutations](/guide/mutations),
 ```ts
 defineAction<TFn>(fn: TFn, meta: ActionMeta): TFn & { meta: ActionMeta }
 // on the augmented mutation:
-isAuthorized: ComputedRef<boolean>          // may this user, at all
-isAuthorizedFor(record: unknown): boolean   // …and does this record qualify
+isAuthorized: ComputedRef<boolean>            // may this user, at all
+isAuthorizationPending: ComputedRef<boolean>  // …or is the verdict still coming
+isAuthorizedFor(record: unknown): boolean     // …and does this record qualify
 withActionBehaviour(...)          // the wrapper the mutations apply
 
 type ServiceRef = typeof RestStd  // what `this` is inside an action

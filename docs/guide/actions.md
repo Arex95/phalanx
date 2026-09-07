@@ -104,6 +104,30 @@ written once and everything reads it — including the action.
 The permission half is a shared `computed`, so a table of a hundred rows
 performs one permission check and a hundred record checks, not two hundred.
 
+### When permissions arrive late
+
+`checkPermission` may return a promise — permissions often come from a profile
+that is still loading. While a verdict is outstanding the action is **denied**,
+not authorized, and `isAuthorizationPending` says which of the two it is:
+
+```vue
+<Button
+  v-if="notify.isAuthorizedFor(row)"
+  :loading="notify.isAuthorizationPending.value"
+  @click="notify.mutate(row.uuid)"
+/>
+```
+
+Denying while pending is deliberate. Reading the check's return value directly
+would authorize everything, because a pending `Promise` is truthy — a control
+the user may not have, rendered and clickable. The verdict is asked once per
+permission and cached, so a hundred rows are one lookup, and a `computed` that
+already read it re-evaluates when the answer lands.
+
+A synchronous check settles immediately and `isAuthorizationPending` is always
+`false`, so nothing changes for a consumer whose permissions are already in
+memory.
+
 ## Wiring the host application
 
 Phalanx does not own the dialog, the toast or the permission system. Provide

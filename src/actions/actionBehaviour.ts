@@ -1,3 +1,4 @@
+import { pending, verdict } from '@/permissions/permissionState';
 import { computed, type ComputedRef, type EffectScope } from 'vue';
 import type { UseMutationReturnType } from '@tanstack/vue-query';
 import type { ActionMeta } from './defineAction';
@@ -46,7 +47,7 @@ export interface ActionInjection {
      * Reads a permission string. Injected rather than assumed, so this
      * library never has an opinion on where permissions come from.
      */
-    checkPermission?: (permission: string) => boolean;
+    checkPermission?: (permission: string) => boolean | Promise<boolean>;
     /**
      * Opens whatever confirmation UI the consumer wants and calls `onAccept`
      * if the user confirms, `onReject` if they decline. `onReject` is what
@@ -115,6 +116,7 @@ export const defaultNotify: NonNullable<ActionInjection['notify']> = (request) =
 
 export type AnyMutation = UseMutationReturnType<unknown, Error, unknown, unknown> & {
     isAuthorized?: ComputedRef<boolean>;
+    isAuthorizationPending?: ComputedRef<boolean>;
     isAuthorizedFor?: (record: unknown) => boolean;
     mutateWithoutConfirmation?: UseMutationReturnType<unknown, Error, unknown, unknown>['mutate'];
     mutateAsyncWithoutConfirmation?: UseMutationReturnType<unknown, Error, unknown, unknown>['mutateAsync'];
@@ -131,6 +133,7 @@ export type AnyMutation = UseMutationReturnType<unknown, Error, unknown, unknown
 export type ActionAugment<TMethod, R, A> = TMethod extends { meta: ActionMeta }
     ? {
           isAuthorized: ComputedRef<boolean>;
+          isAuthorizationPending: ComputedRef<boolean>;
           isAuthorizedFor: (record: unknown) => boolean;
           mutateWithoutConfirmation: UseMutationReturnType<R, Error, A, unknown>['mutate'];
           mutateAsyncWithoutConfirmation: UseMutationReturnType<R, Error, A, unknown>['mutateAsync'];
@@ -150,8 +153,16 @@ export function withActionBehaviour(
     ownerScope: EffectScope
 ): AnyMutation {
     return ownerScope.run(() => {
+        // Routed through the shared resolution rather than calling the check
+        // directly: the check may return a promise, and a pending `Promise` is
+        // truthy — read naively it would authorize everything.
         const isAuthorized = computed(() =>
-            meta.permission ? injection.checkPermission(meta.permission) : true
+            meta.permission ? verdict(injection.checkPermission, meta.permission) : true
+        );
+
+        /** Whether that verdict is still being fetched, for a loading state. */
+        const isAuthorizationPending = computed(() =>
+            meta.permission ? pending(injection.checkPermission, meta.permission) : false
         );
 
         // The permission half is shared across every row and re-evaluated
@@ -170,6 +181,7 @@ export function withActionBehaviour(
             return {
                 ...mutation,
                 isAuthorized,
+                isAuthorizationPending,
                 isAuthorizedFor,
                 mutateWithoutConfirmation: mutation.mutate,
                 mutateAsyncWithoutConfirmation: mutation.mutateAsync
@@ -217,6 +229,7 @@ export function withActionBehaviour(
         return {
             ...mutation,
             isAuthorized,
+            isAuthorizationPending,
             isAuthorizedFor,
             mutate,
             mutateAsync,

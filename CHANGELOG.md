@@ -57,6 +57,38 @@ routed none of them** through `defineAction`'s `permission` field.
   It refuses an empty prefix, and refuses an extra that would overwrite one of
   the five base actions rather than merging it.
 
+- **`checkPermission` may return a promise.** Permissions usually come from a
+  profile that is still loading. While a verdict is outstanding the action is
+  **denied**, not authorized, and `isAuthorizationPending` distinguishes the
+  two so a control can show a loading state instead of flickering.
+
+  Denying while pending is not caution, it is a correctness fix: `isAuthorized`
+  read the check's return value directly, and a pending `Promise` is truthy —
+  an asynchronous check would have authorized everything. Both now route
+  through one resolution that caches per permission, so a hundred rows are one
+  lookup, and a `computed` that already read a verdict re-evaluates when it
+  lands. A check that rejects denies. A synchronous check settles immediately
+  and `isAuthorizationPending` is always `false`.
+
+- **`can`, `canAny`, `canAll`, `isPermissionPending`, `usePermission`,
+  `canAsync`, `canAnyAsync`.** The registered check, reachable without
+  constructing a domain object — for a route guard, a menu item, or any check
+  with no mutation attached. One panel had 43 call sites against a separate
+  entry point; reading it from here is what stops a button and the route behind
+  it from disagreeing. With no check registered everything is permitted.
+
+- **`createPermissionGuard(options?)`** builds the permission half of a
+  navigation guard, and only that half. It returns a verdict; what a denial
+  means stays the consumer's — a redirect, a 403 view, a different landing
+  page. **No router dependency is added**: the guard reads `meta.permission`
+  off a plain object. A panel's real guard was 90 lines of which about 12 were
+  this; the other 78 are tenancy and profile loading and stay theirs.
+
+  Asynchronous, because a route is the one place that can afford to wait and
+  must not guess. Fail-closed on a declared requirement; a route declaring none
+  is allowed. `read` and `inherit` are configurable, so neither the field name
+  nor nested-route behaviour is ours to fix.
+
 # 6.1.0 (2026-09-06)
 
 Three gaps reported by a panel adopting the actions layer, which had it declared

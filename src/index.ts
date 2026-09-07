@@ -59,6 +59,7 @@ export const Phalanx = {
 // Public API surface — REST + Auth foundation only.
 export * from "./rest";
 export * from "./actions";
+export * from "./permissions";
 export * from "./composables";
 export * from "./config";
 export * from "./enums";

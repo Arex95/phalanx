@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createApp } from 'vue';
+import { createApp, nextTick } from 'vue';
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { createDomainMutations } from './createDomainMutations';
 import { configActions, resetActionsConfig } from '@config/global/actionsConfig';
@@ -57,6 +57,7 @@ function service(meta: Record<string, unknown>) {
 type Gated = {
     notify: {
         isAuthorized: { value: boolean };
+        isAuthorizationPending: { value: boolean };
         isAuthorizedFor: (record: unknown) => boolean;
     };
 };
@@ -159,5 +160,39 @@ describe('isAuthorizedFor', () => {
 
         configActions({ checkPermission: () => true });
         expect(h.domain.notify.isAuthorizedFor(new Entry('pending'))).toBe(true);
+    });
+
+    it('is denied, not authorized, while an async permission is pending', async () => {
+        resetActionsConfig();
+        let release!: (allowed: boolean) => void;
+        const gate = new Promise<boolean>((r) => (release = r));
+        configActions({ checkPermission: () => gate });
+
+        const h = build({ permission: Perms.notify, allowedWhen: (e: Entry) => e.canBeNotified });
+        harness = h;
+
+        // The failure this prevents: a pending Promise is truthy, so a naive
+        // read shows every gated control before the answer arrives.
+        expect(h.domain.notify.isAuthorized.value).toBe(false);
+        expect(h.domain.notify.isAuthorizationPending.value).toBe(true);
+        expect(h.domain.notify.isAuthorizedFor(new Entry('pending'))).toBe(false);
+
+        release(true);
+        await gate;
+        await nextTick();
+
+        expect(h.domain.notify.isAuthorized.value).toBe(true);
+        expect(h.domain.notify.isAuthorizationPending.value).toBe(false);
+        expect(h.domain.notify.isAuthorizedFor(new Entry('pending'))).toBe(true);
+        expect(h.domain.notify.isAuthorizedFor(new Entry('notified'))).toBe(false);
+    });
+
+    it('reports no pending state for a synchronous check', () => {
+        resetActionsConfig();
+        configActions({ checkPermission: () => true });
+        const h = build({ permission: Perms.notify });
+        harness = h;
+        // A consumer who never returns a promise pays nothing for this.
+        expect(h.domain.notify.isAuthorizationPending.value).toBe(false);
     });
 });
